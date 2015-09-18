@@ -10,8 +10,9 @@ object Dependencies {
   }
 
   private val config = "com.typesafe" % "config" % "1.3.0"
+  private val aalto  = "com.fasterxml" % "aalto-xml" % "0.9.11"
 
-  val microservice = dependencies(Netty.all, Netty.epoll, config)
+  val microservice = dependencies(Netty.all, Netty.epoll, config, aalto)
 
   private def dependencies(modules: ModuleID*): Seq[Setting[_]] = Seq(libraryDependencies ++= modules)
 }

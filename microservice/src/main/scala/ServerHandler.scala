@@ -1,42 +1,87 @@
-import io.netty.buffer.{Unpooled, ByteBuf}
-import io.netty.channel.{ChannelFutureListener, ChannelHandlerContext, SimpleChannelInboundHandler}
-import io.netty.handler.codec.http._
-import io.netty.util.CharsetUtil
+import java.util.logging.Logger
+import javax.net.ssl.{SSLContext, SSLEngine}
+import io.netty.handler.ssl.SslHandler
+import io.netty.channel.{ChannelHandlerContext, SimpleChannelInboundHandler}
+import javax.xml.stream.events._
+import scala.collection.mutable.Stack
+import scala.collection.JavaConversions._
+import main.scala.XmlElement
 
-class ServerHandler extends SimpleChannelInboundHandler[HttpRequest] {
+class ServerHandler(sslContext: SSLContext) extends SimpleChannelInboundHandler[XMLEvent] {
 
-  import ServerHandler._
+  val logger = Logger.getLogger(getClass.getName)
+  var nodes: Stack[XmlElement] = Stack()
+  var depth = 0
 
-  override def channelRead0(ctx: ChannelHandlerContext, r: HttpRequest): Unit =
-    writeResponse(ctx, r, okContentBuffer.duplicate, typePlain, okContentLength)
+  def getAttributeTuple(attr: Attribute): (String, String) = {
+    return (
+      attr.getName.getPrefix match {
+        case prefix: String if prefix.length > 0 =>
+          prefix + ":" + attr.getName.getLocalPart
+        case prefix: String =>
+          attr.getName.getLocalPart
+      },
+      attr.getValue
+    )
+  }
 
-  override def exceptionCaught(ctx: ChannelHandlerContext, e: Throwable): Unit =
-    ctx.close()
+  def getXmlElement(e: StartElement): XmlElement = {
+    val ns = e.getName.getNamespaceURI
+    val element = XmlElement(
+      e.getName.getLocalPart,
+      ns match {
+        case uri: String if uri.length > 0 =>
+          ("xmlns", ns) :: e.getAttributes.map(x => getAttributeTuple(x.asInstanceOf[Attribute])).toList
+        case uri: String =>
+          e.getAttributes.map(x => getAttributeTuple(x.asInstanceOf[Attribute])).toList
+      },
+      "", List())
+    return element
+  }
 
-}
+  override def channelActive(ctx: ChannelHandlerContext) {
+    super.channelActive(ctx)
+    val engine = sslContext.createSSLEngine
+    engine.setUseClientMode(false)
+    ctx.channel.pipeline.addFirst("ssl", new SslHandler(engine))
+  }
 
-object ServerHandler {
-
-  private val contentTypeEntity = HttpHeaders.newEntity(HttpHeaders.Names.CONTENT_TYPE)
-  private val contentLengthEntity = HttpHeaders.newEntity(HttpHeaders.Names.CONTENT_LENGTH)
-
-  private val okContentBuffer = Unpooled.unreleasableBuffer(Unpooled.directBuffer.writeBytes("OK".getBytes(CharsetUtil.UTF_8)))
-  private val okContentLength = HttpHeaders.newEntity(String.valueOf(okContentBuffer.readableBytes))
-  private val typePlain = HttpHeaders.newEntity("text/plain; charset=UTF-8")
-
-  private def writeResponse(ctx: ChannelHandlerContext, request: HttpRequest, buf: ByteBuf, contentType: CharSequence, contentLength: CharSequence) {
-    val keepAlive = HttpHeaders.isKeepAlive(request)
-    val response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, buf, false)
-    val headers = response.headers
-    headers.set(contentTypeEntity, contentType)
-    headers.set(contentLengthEntity, contentLength)
-
-    if (!keepAlive) {
-      ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE)
+  override def channelRead0(ctx: ChannelHandlerContext, event: XMLEvent) {
+    event match {
+      case e: StartDocument =>
+      case e: StartElement if depth == 0 =>
+        depth += 1
+        val element = getXmlElement(e)
+        logger.warning(element.toString)
+      case e: StartElement if depth >= 1 =>
+        val element = getXmlElement(e)
+        if (nodes.length > 0) {
+          val parent = nodes(0)
+          parent.children = element :: parent.children
+        }
+        nodes.push(element)
+        depth += 1
+      case e: EndElement =>
+        depth -= 1
+        if (nodes.length > 0) {
+          val element = nodes.pop
+          if (depth == 1) {
+            logger.warning(element.toString)
+          }
+        }
+      case e: EndDocument =>
+      case e: Characters =>
+        if (!e.isWhiteSpace) {
+          nodes(0).body = e.getData
+        }
+      case _ =>
+        logger.warning("Got unsupported event: " + event.getClass.getName)
     }
-    else {
-      ctx.writeAndFlush(response, ctx.voidPromise)
-    }
+  }
+
+  override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
+    logger.warning("Unexpected exception: " + cause)
+    ctx.close
   }
 
 }
