@@ -11,6 +11,8 @@ import io.netty.channel.{ChannelOption, EventLoopGroup, ServerChannel}
 
 import javax.net.ssl.{SSLContext, KeyManagerFactory}
 
+import akka.actor.ActorSystem
+
 class Server(context: MicroserviceContext) {
 
   private def doRun(group: EventLoopGroup, clazz: Class[_ <: ServerChannel]): Unit = {
@@ -25,9 +27,11 @@ class Server(context: MicroserviceContext) {
       val sslContext = SSLContext.getInstance("TLS")
       sslContext.init(kmf.getKeyManagers, null, new SecureRandom())
 
+      val actorSystem = ActorSystem("FSM")
+
       val inet: InetSocketAddress = new InetSocketAddress(context.endpoint.port)
       val bootstrap = new ServerBootstrap()
-      bootstrap.group(group).channel(clazz).childHandler(new ServerInitializer(sslContext))
+      bootstrap.group(group).channel(clazz).childHandler(new ServerInitializer(sslContext, actorSystem))
       bootstrap.childOption(ChannelOption.ALLOCATOR, new PooledByteBufAllocator(true))
       bootstrap.bind(inet).sync.channel.closeFuture.sync
     } finally {

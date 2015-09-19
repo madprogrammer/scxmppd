@@ -1,16 +1,19 @@
 import java.util.logging.Logger
 import javax.net.ssl.{SSLContext, SSLEngine}
 import io.netty.handler.ssl.SslHandler
-import io.netty.channel.{ChannelHandlerContext, SimpleChannelInboundHandler}
+import io.netty.channel.{Channel, ChannelHandlerContext, SimpleChannelInboundHandler}
 import javax.xml.stream.events._
+import java.net.InetSocketAddress
 import scala.collection.mutable.Stack
 import scala.collection.JavaConversions._
-import main.scala.XmlElement
+import akka.actor._
+import main.scala._
 
-class ServerHandler(sslContext: SSLContext) extends SimpleChannelInboundHandler[XMLEvent] {
+class ServerHandler(sslContext: SSLContext, actorSystem: ActorSystem) extends SimpleChannelInboundHandler[XMLEvent] {
 
   val logger = Logger.getLogger(getClass.getName)
   var nodes: Stack[XmlElement] = Stack()
+  var fsm: ActorRef = _
   var depth = 0
 
   def getAttributeTuple(attr: Attribute): (String, String) = {
@@ -39,11 +42,18 @@ class ServerHandler(sslContext: SSLContext) extends SimpleChannelInboundHandler[
     return element
   }
 
+  def createFSM(channel: Channel): ActorRef = {
+    val (ip, port) = channel.remoteAddress match { case s: InetSocketAddress => (s.getAddress.getHostAddress, s.getPort) }
+    val name = "c2s-" + ip + ":" + port
+    return actorSystem.actorOf(Props(classOf[ClientFSM]).withDeploy(Deploy.local), name)
+  }
+
   override def channelActive(ctx: ChannelHandlerContext) {
     super.channelActive(ctx)
     val engine = sslContext.createSSLEngine
     engine.setUseClientMode(false)
     ctx.channel.pipeline.addFirst("ssl", new SslHandler(engine))
+    fsm = createFSM(ctx.channel)
   }
 
   override def channelRead0(ctx: ChannelHandlerContext, event: XMLEvent) {
@@ -53,6 +63,7 @@ class ServerHandler(sslContext: SSLContext) extends SimpleChannelInboundHandler[
         depth += 1
         val element = getXmlElement(e)
         logger.warning(element.toString)
+        fsm ! element
       case e: StartElement if depth >= 1 =>
         val element = getXmlElement(e)
         if (nodes.length > 0) {
@@ -67,6 +78,7 @@ class ServerHandler(sslContext: SSLContext) extends SimpleChannelInboundHandler[
           val element = nodes.pop
           if (depth == 1) {
             logger.warning(element.toString)
+            fsm ! element
           }
         }
       case e: EndDocument =>
