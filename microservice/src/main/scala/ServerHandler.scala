@@ -1,6 +1,7 @@
 import java.util.logging.Logger
 import javax.net.ssl.{SSLContext, SSLEngine}
 import io.netty.handler.ssl.SslHandler
+import io.netty.handler.codec.DecoderException
 import io.netty.channel.{Channel, ChannelHandlerContext, SimpleChannelInboundHandler}
 import javax.xml.stream.events._
 import java.net.InetSocketAddress
@@ -42,10 +43,10 @@ class ServerHandler(sslContext: SSLContext, actorSystem: ActorSystem) extends Si
     return element
   }
 
-  def createFSM(channel: Channel): ActorRef = {
-    val (ip, port) = channel.remoteAddress match { case s: InetSocketAddress => (s.getAddress.getHostAddress, s.getPort) }
+  def createFSM(ctx: ChannelHandlerContext): ActorRef = {
+    val (ip, port) = ctx.channel.remoteAddress match { case s: InetSocketAddress => (s.getAddress.getHostAddress, s.getPort) }
     val name = "c2s-" + ip + ":" + port
-    return actorSystem.actorOf(Props(classOf[ClientFSM]).withDeploy(Deploy.local), name)
+    return actorSystem.actorOf(Props(classOf[ClientFSM], ctx).withDeploy(Deploy.local), name)
   }
 
   override def channelActive(ctx: ChannelHandlerContext) {
@@ -53,7 +54,7 @@ class ServerHandler(sslContext: SSLContext, actorSystem: ActorSystem) extends Si
     val engine = sslContext.createSSLEngine
     engine.setUseClientMode(false)
     ctx.channel.pipeline.addFirst("ssl", new SslHandler(engine))
-    fsm = createFSM(ctx.channel)
+    fsm = createFSM(ctx)
   }
 
   override def channelRead0(ctx: ChannelHandlerContext, event: XMLEvent) {
@@ -81,11 +82,11 @@ class ServerHandler(sslContext: SSLContext, actorSystem: ActorSystem) extends Si
             fsm ! element
           }
         }
-      case e: EndDocument =>
       case e: Characters =>
         if (!e.isWhiteSpace) {
           nodes(0).body = e.getData
         }
+      case e: EndDocument =>
       case _ =>
         logger.warning("Got unsupported event: " + event.getClass.getName)
     }
@@ -93,6 +94,10 @@ class ServerHandler(sslContext: SSLContext, actorSystem: ActorSystem) extends Si
 
   override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
     logger.warning("Unexpected exception: " + cause)
+    cause match {
+      case e: DecoderException =>
+        fsm ! ClientFSM.ParseError
+    }
     ctx.close
   }
 
