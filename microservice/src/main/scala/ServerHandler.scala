@@ -1,3 +1,5 @@
+package main.scala
+
 import java.util.logging.Logger
 import javax.net.ssl.{SSLContext, SSLEngine}
 import io.netty.handler.ssl.SslHandler
@@ -10,7 +12,7 @@ import scala.collection.JavaConversions._
 import akka.actor._
 import main.scala._
 
-class ServerHandler(sslContext: SSLContext, actorSystem: ActorSystem) extends SimpleChannelInboundHandler[XMLEvent] {
+class ServerHandler(context: MicroserviceContext, sslContext: SSLContext, actorSystem: ActorSystem) extends SimpleChannelInboundHandler[XMLEvent] {
 
   val logger = Logger.getLogger(getClass.getName)
   var nodes: Stack[XmlElement] = Stack()
@@ -46,7 +48,12 @@ class ServerHandler(sslContext: SSLContext, actorSystem: ActorSystem) extends Si
   def createFSM(ctx: ChannelHandlerContext): ActorRef = {
     val (ip, port) = ctx.channel.remoteAddress match { case s: InetSocketAddress => (s.getAddress.getHostAddress, s.getPort) }
     val name = "c2s-" + ip + ":" + port
-    return actorSystem.actorOf(Props(classOf[ClientFSM], ctx).withDeploy(Deploy.local), name)
+    return actorSystem.actorOf(Props(classOf[ClientFSM], context, ctx).withDeploy(Deploy.local), name)
+  }
+
+  def reset() {
+    depth = 0
+    nodes.clear
   }
 
   override def channelActive(ctx: ChannelHandlerContext) {
@@ -98,7 +105,6 @@ class ServerHandler(sslContext: SSLContext, actorSystem: ActorSystem) extends Si
       case e: DecoderException =>
         fsm ! ClientFSM.ParseError
     }
-    ctx.close
   }
 
 }

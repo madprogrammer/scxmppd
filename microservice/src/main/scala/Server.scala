@@ -1,3 +1,5 @@
+package main.scala
+
 import java.io.FileInputStream
 import java.net.InetSocketAddress
 import java.security.{KeyStore, SecureRandom}
@@ -31,7 +33,7 @@ class Server(context: MicroserviceContext) {
 
       val inet: InetSocketAddress = new InetSocketAddress(context.endpoint.port)
       val bootstrap = new ServerBootstrap()
-      bootstrap.group(group).channel(clazz).childHandler(new ServerInitializer(sslContext, actorSystem))
+      bootstrap.group(group).channel(clazz).childHandler(new ServerInitializer(context, sslContext, actorSystem))
       bootstrap.childOption(ChannelOption.ALLOCATOR, new PooledByteBufAllocator(true))
       bootstrap.bind(inet).sync.channel.closeFuture.sync
     } finally {

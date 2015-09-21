@@ -1,3 +1,5 @@
+package main.scala
+
 import java.util.List
 
 import javax.xml.stream.events.XMLEvent
@@ -15,9 +17,13 @@ import com.fasterxml.aalto.stax.InputFactoryImpl
 class XmlFrameDecoder extends ByteToMessageDecoder {
 
   val factory = new InputFactoryImpl()
-  val allocator = EventAllocatorImpl.getDefaultInstance
-  val reader = factory.createAsyncForByteBuffer
+  var reader = factory.createAsyncForByteBuffer
   val logger = Logger.getLogger(getClass.getName)
+  val allocator = EventAllocatorImpl.getDefaultInstance
+
+  def reset() {
+    reader = factory.createAsyncForByteBuffer
+  }
 
   @throws[Exception]
   override def decode(ctx: ChannelHandlerContext, buffer: ByteBuf, out: List[Object]) {

@@ -1,3 +1,5 @@
+package main.scala
+
 import com.typesafe.config.{Config, ConfigFactory}
 
 abstract class Context(val config: Config) {
@@ -15,6 +17,7 @@ abstract class Context(val config: Config) {
 class MicroserviceContext extends Context {
   val endpoint = new EndpointSettings(config)
   val keystore = new KeystoreSettings(config)
+  val xmpp = new XmppSettigns(config)
 }
 
 class EndpointSettings(config: Config) {
@@ -26,5 +29,10 @@ class KeystoreSettings(config: Config) {
   config.checkValid(ConfigFactory.defaultReference(), "keystore")
   val location = config.getString("keystore.location")
   val password = config.getString("keystore.password")
+}
+
+class XmppSettigns(config: Config) {
+  config.checkValid(ConfigFactory.defaultReference(), "xmpp")
+  val hosts = config.getStringList("xmpp.hosts")
 }
 

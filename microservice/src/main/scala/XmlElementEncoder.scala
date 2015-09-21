@@ -18,11 +18,11 @@ class XmlElementEncoder extends MessageToMessageEncoder[XmlElement] {
     eventWriter.add(eventFactory.createStartElement("", "", el.name))
     for (attr <- el.attrs)
       eventWriter.add(eventFactory.createAttribute(attr._1, attr._2))
-    if (el.body.length > 0)
       eventWriter.add(eventFactory.createCharacters(el.body))
     for (child <- el.children)
       writeElement(child, eventWriter)
-    eventWriter.add(eventFactory.createEndElement("", "", el.name))
+    if (el.name != "stream:stream")
+      eventWriter.add(eventFactory.createEndElement("", "", el.name))
   }
 
   @throws[Exception]
@@ -31,9 +31,10 @@ class XmlElementEncoder extends MessageToMessageEncoder[XmlElement] {
     val eventWriter = outputFactory.createXMLEventWriter(stringWriter)
 
     writeElement(message, eventWriter)
-    eventWriter.close
 
+    eventWriter.flush
     out.add(ByteBufUtil.encodeString(ctx.alloc, CharBuffer.wrap(stringWriter.toString), Charset.defaultCharset))
+    eventWriter.close
   }
 
 }
