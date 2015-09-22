@@ -18,6 +18,7 @@ class XmlElementEncoder extends MessageToMessageEncoder[XmlElement] {
     eventWriter.add(eventFactory.createStartElement("", "", el.name))
     for (attr <- el.attrs)
       eventWriter.add(eventFactory.createAttribute(attr._1, attr._2))
+    if (el.body.length > 0 || el.name == "stream:stream")
       eventWriter.add(eventFactory.createCharacters(el.body))
     for (child <- el.children)
       writeElement(child, eventWriter)

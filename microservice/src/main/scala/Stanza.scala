@@ -53,6 +53,12 @@ object IQ {
   }
 }
 
+object Sasl {
+  val Success = XmlElement("success", List(("xmlns", XmppNS.Sasl)), "", List())
+  val Failure = XmlElement("failure", List(("xmlns", XmppNS.Sasl)), "", List(
+    XmlElement("not-authorized", List(), "", List())))
+}
+
 object StreamError {
   val HostUnknown = "host-unknown"
   val InvalidNamespace = "invalid-namespace"

@@ -1,6 +1,8 @@
 package main.scala
 
+import java.util.logging.Logger
 import java.net.InetSocketAddress
+import javax.xml.bind.DatatypeConverter
 import io.netty.channel.ChannelHandlerContext
 import akka.actor._
 
@@ -19,16 +21,23 @@ object ClientFSM {
     ip: String,
     port: Int,
     streamId: String,
-    authenticated: Boolean = false) extends Data
+    authenticated: Boolean = false,
+    user: String = "",
+    server: String = "",
+    resource: String = ""
+  ) extends Data
 
   // Accepted commands
+  case object Disconnected
   case object ParseError
+  case class ExceptionCaught(e: Throwable)
 }
 
 class ClientFSM(context: MicroserviceContext, ctx: ChannelHandlerContext) extends FSM[ClientFSM.State, ClientFSM.Data]  {
   import ClientFSM._
 
   val (ip, port) = ctx.channel.remoteAddress match { case s: InetSocketAddress => (s.getAddress.getHostAddress, s.getPort) }
+  val logger = Logger.getLogger(getClass.getName)
 
   def streamError(error: String): State = {
     ctx.writeAndFlush(StreamError(error))
@@ -57,7 +66,7 @@ class ClientFSM(context: MicroserviceContext, ctx: ChannelHandlerContext) extend
                 ctx.writeAndFlush(StreamFeatures(data.authenticated))
                 data.authenticated match {
                   case false => goto(WaitForFeatureRequest) using data
-                  case true => goto(WaitForBind) using data
+                  case true => goto(WaitForBind) using data.copy(server = StringPrep.nodePrep(server))
                 }
               case _ =>
                 streamHeaderError(data.streamId, StreamError.UnsupportedVersion)
@@ -70,9 +79,20 @@ class ClientFSM(context: MicroserviceContext, ctx: ChannelHandlerContext) extend
   }
   when(WaitForFeatureRequest) {
     case Event(e @ XmlElement("auth", _, auth, List()), data: ClientState) =>
-      // TODO: Authentication
-      ctx.writeAndFlush(XmlElement("success", List(("xmlns", XmppNS.Sasl)), "", List()))
-      goto(WaitForStream) using ClientState(data.ip, data.port, RandomUtils.randomDigits(10), true)
+      val decoded = new String(DatatypeConverter.parseBase64Binary(auth))
+      decoded.split("\u0000") match {
+        case Array(_, user, pass) =>
+          ctx.writeAndFlush(Sasl.Success)
+          goto(WaitForStream) using data.copy(
+            streamId = RandomUtils.randomDigits(10),
+            user = StringPrep.namePrep(user),
+            authenticated = true)
+        case _ =>
+          ctx.writeAndFlush(Sasl.Failure)
+          ctx.writeAndFlush("</stream:stream>")
+          ctx.close
+          stop
+      }
     case Event(XmlElement(_, _, _, _), _) =>
       stay
   }
@@ -84,10 +104,11 @@ class ClientFSM(context: MicroserviceContext, ctx: ChannelHandlerContext) extend
             case Some(bind @ XmlElement("bind", List(("xmlns", XmppNS.Bind)), _, _)) =>
               bind.child("resource") match {
                 case Some(rsrc @ XmlElement("resource", _, resource, List())) =>
+                  val resprep = StringPrep.resourcePrep(resource)
                   ctx.writeAndFlush(IQ(id, "result",
                     XmlElement("bind", List(("xmlns", XmppNS.Bind)), "", List(
-                      XmlElement("jid", List(), JID("Test", "Localhost", "RES").toString, List())))))
-                    stay
+                      XmlElement("jid", List(), JID(data.user, data.server, resprep).toString, List())))))
+                    goto(WaitForSession) using data.copy(resource = resprep)
                 case _ =>
                   ctx.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
                   stay
@@ -96,10 +117,33 @@ class ClientFSM(context: MicroserviceContext, ctx: ChannelHandlerContext) extend
               ctx.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
               stay
           }
-        case _ => // no id
+        case _ =>
           ctx.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
           stay
       }
+    case Event(XmlElement(_, _, _, _), _) =>
+      stay
+  }
+  when(WaitForSession) {
+    case Event(e @ XmlElement("iq", _, _, _), data: ClientState) =>
+      e("id") match {
+        case Some(id) =>
+          e.child("session") match {
+            case Some(XmlElement("session", List(("xmlns", XmppNS.Session)), "", List())) =>
+              ctx.writeAndFlush(IQ(id, "result",
+                XmlElement("session", List(("xmlns", XmppNS.Session)), "", List())))
+              goto(SessionEstablished) using data
+            case _ =>
+              stay
+          }
+        case _ =>
+          ctx.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
+          stay
+      }
+    case Event(XmlElement(_, _, _, _), _) =>
+      stay
+  }
+  when(SessionEstablished) {
     case Event(XmlElement(_, _, _, _), _) =>
       stay
   }
@@ -107,8 +151,13 @@ class ClientFSM(context: MicroserviceContext, ctx: ChannelHandlerContext) extend
     case Event(ParseError, _) =>
       streamError(StreamError.XmlNotWellFormed)
       stop
-    case Event(e: XmlElement, _) =>
-      ctx.writeAndFlush(e);
+    case Event(ExceptionCaught(e), _) =>
+      stop
+    case Event(Disconnected, _) =>
+      logger.info("Disconnected: " + self.path.name)
+      stop
+    case Event(e @ XmlElement, _) =>
+      logger.warning("Unhandled XmlElement: " + e)
       stay
   }
   onTransition {

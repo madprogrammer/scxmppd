@@ -47,7 +47,7 @@ class ServerHandler(context: MicroserviceContext, sslContext: SSLContext, actorS
 
   def createFSM(ctx: ChannelHandlerContext): ActorRef = {
     val (ip, port) = ctx.channel.remoteAddress match { case s: InetSocketAddress => (s.getAddress.getHostAddress, s.getPort) }
-    val name = "c2s-" + ip + ":" + port
+    val name = "c2s-" + ip + ":" + port + ":" + RandomUtils.randomDigits(5)
     return actorSystem.actorOf(Props(classOf[ClientFSM], context, ctx).withDeploy(Deploy.local), name)
   }
 
@@ -62,6 +62,11 @@ class ServerHandler(context: MicroserviceContext, sslContext: SSLContext, actorS
     engine.setUseClientMode(false)
     ctx.channel.pipeline.addFirst("ssl", new SslHandler(engine))
     fsm = createFSM(ctx)
+  }
+
+  override def channelInactive(ctx: ChannelHandlerContext) {
+    fsm ! ClientFSM.Disconnected
+    super.channelInactive(ctx)
   }
 
   override def channelRead0(ctx: ChannelHandlerContext, event: XMLEvent) {
@@ -104,6 +109,8 @@ class ServerHandler(context: MicroserviceContext, sslContext: SSLContext, actorS
     cause match {
       case e: DecoderException =>
         fsm ! ClientFSM.ParseError
+      case e =>
+        fsm ! ClientFSM.ExceptionCaught(e)
     }
   }
 

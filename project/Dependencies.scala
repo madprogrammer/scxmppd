@@ -9,7 +9,7 @@ object Dependencies {
     val epoll = "io.netty" % "netty-transport-native-epoll" % version
   }
 
-  private val config = "com.typesafe" % "config" % "1.3.0"
+  private val config = "com.typesafe" % "config" % "1.2.1"
   private val aalto  = "com.fasterxml" % "aalto-xml" % "0.9.11"
   private val akka   = "com.typesafe.akka" %% "akka-actor" % "2.3.13"
   private val icu4j  = "com.ibm.icu" % "icu4j" % "55.1"
