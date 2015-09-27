@@ -1,18 +1,21 @@
 package main.scala
 
 import java.util.logging.Logger
-import javax.net.ssl.{SSLContext, SSLEngine}
-import io.netty.handler.ssl.SslHandler
 import io.netty.handler.codec.DecoderException
 import io.netty.channel.{Channel, ChannelHandlerContext, SimpleChannelInboundHandler}
-import javax.xml.stream.events._
 import java.net.InetSocketAddress
+import java.net.URLEncoder
+import javax.xml.stream.events._
 import scala.collection.mutable.Stack
 import scala.collection.JavaConversions._
 import akka.actor._
-import main.scala._
+import akka.pattern.ask
+import akka.util.Timeout
+import scala.concurrent.Await
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
-class ServerHandler(context: MicroserviceContext, sslContext: SSLContext, actorSystem: ActorSystem) extends SimpleChannelInboundHandler[XMLEvent] {
+class ServerHandler(context: MicroserviceContext, manager: ActorRef) extends SimpleChannelInboundHandler[XMLEvent] {
 
   val logger = Logger.getLogger(getClass.getName)
   var nodes: Stack[XmlElement] = Stack()
@@ -46,9 +49,32 @@ class ServerHandler(context: MicroserviceContext, sslContext: SSLContext, actorS
   }
 
   def createFSM(ctx: ChannelHandlerContext): ActorRef = {
+    implicit val timeout = Timeout(60 seconds)
     val (ip, port) = ctx.channel.remoteAddress match { case s: InetSocketAddress => (s.getAddress.getHostAddress, s.getPort) }
-    val name = "c2s-" + ip + ":" + port + ":" + RandomUtils.randomDigits(5)
-    return actorSystem.actorOf(Props(classOf[ClientFSM], context, ctx).withDeploy(Deploy.local), name)
+    val name = ip + ":" + port + "@" + RandomUtils.randomDigits(5)
+    val future = manager ? CreateClientFSM(ctx, name,
+      ClientFSM.WaitForStream,
+      ClientFSM.ClientState(RandomUtils.randomDigits(10)))
+    Await.result(future, timeout.duration).asInstanceOf[ActorRef]
+  }
+
+  // Called from ClientFSM to replace it while keeping state
+  def replaceFSM(ctx: ChannelHandlerContext, state: ClientFSM.State, data: ClientFSM.ClientState) {
+    implicit val timeout = Timeout(60 seconds)
+    data.jid match {
+      case None =>
+        throw new IllegalArgumentException("JID was not initialized")
+      case Some(jid) =>
+        val name = Array(
+          URLEncoder.encode(jid.user),
+          jid.server,
+          URLEncoder.encode(jid.resource)
+        ).mkString(":")
+        val previous = fsm
+        val future = manager ? CreateClientFSM(ctx, name, state, data)
+        fsm = Await.result(future, timeout.duration).asInstanceOf[ActorRef]
+        previous ! ClientFSM.Replaced(fsm)
+    }
   }
 
   def reset() {
@@ -58,9 +84,6 @@ class ServerHandler(context: MicroserviceContext, sslContext: SSLContext, actorS
 
   override def channelActive(ctx: ChannelHandlerContext) {
     super.channelActive(ctx)
-    val engine = sslContext.createSSLEngine
-    engine.setUseClientMode(false)
-    ctx.channel.pipeline.addFirst("ssl", new SslHandler(engine))
     fsm = createFSM(ctx)
   }
 
@@ -106,6 +129,7 @@ class ServerHandler(context: MicroserviceContext, sslContext: SSLContext, actorS
 
   override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
     logger.warning("Unexpected exception: " + cause)
+    cause.printStackTrace
     cause match {
       case e: DecoderException =>
         fsm ! ClientFSM.ParseError

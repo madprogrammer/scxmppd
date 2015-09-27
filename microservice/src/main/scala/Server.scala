@@ -1,8 +1,7 @@
 package main.scala
 
-import java.io.FileInputStream
+import java.io.File
 import java.net.InetSocketAddress
-import java.security.{KeyStore, SecureRandom}
 
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.buffer.PooledByteBufAllocator
@@ -10,30 +9,33 @@ import io.netty.channel.epoll.{Epoll, EpollEventLoopGroup, EpollServerSocketChan
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.channel.{ChannelOption, EventLoopGroup, ServerChannel}
+import io.netty.handler.ssl.{SslContextBuilder, SslProvider}
 
-import javax.net.ssl.{SSLContext, KeyManagerFactory}
-
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem, Props}
 
 class Server(context: MicroserviceContext) {
 
   private def doRun(group: EventLoopGroup, clazz: Class[_ <: ServerChannel]): Unit = {
     try {
-      val keystore = KeyStore.getInstance("JKS")
-      keystore.load(new FileInputStream(context.keystore.location),
-        context.keystore.password.toCharArray)
+      val sslContextBuilder = SslContextBuilder.forServer(
+        new File(context.ssl.certfile), new File(context.ssl.keyfile))
+      context.ssl.provider match {
+        case "jdk" =>
+          sslContextBuilder.sslProvider(SslProvider.JDK)
+        case "openssl" =>
+          sslContextBuilder.sslProvider(SslProvider.OPENSSL)
+        case _ =>
+          sslContextBuilder.sslProvider(SslProvider.JDK)
+      }
+      val sslContext = sslContextBuilder.build
 
-      val kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm)
-      kmf.init(keystore, context.keystore.password.toCharArray)
-
-      val sslContext = SSLContext.getInstance("TLS")
-      sslContext.init(kmf.getKeyManagers, null, new SecureRandom())
-
-      val actorSystem = ActorSystem("FSM")
+      val actorSystem = ActorSystem("system")
+      actorSystem.actorOf(Props[ClusterListener], "clusterListener")
+      val manager = actorSystem.actorOf(Props(classOf[C2SManager], context, actorSystem), "c2s")
 
       val inet: InetSocketAddress = new InetSocketAddress(context.endpoint.port)
       val bootstrap = new ServerBootstrap()
-      bootstrap.group(group).channel(clazz).childHandler(new ServerInitializer(context, sslContext, actorSystem))
+      bootstrap.group(group).channel(clazz).childHandler(new ServerInitializer(context, sslContext, manager))
       bootstrap.childOption(ChannelOption.ALLOCATOR, new PooledByteBufAllocator(true))
       bootstrap.bind(inet).sync.channel.closeFuture.sync
     } finally {

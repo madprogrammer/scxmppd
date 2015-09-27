@@ -18,55 +18,70 @@ object ClientFSM {
   // Internal state (business logic)
   sealed trait Data
   case class ClientState(
-    ip: String,
-    port: Int,
     streamId: String,
     authenticated: Boolean = false,
     user: String = "",
     server: String = "",
-    resource: String = ""
+    resource: String = "",
+    jid: Option[JID] = None
   ) extends Data
 
   // Accepted commands
   case object Disconnected
   case object ParseError
+  case class Replaced(ref: ActorRef)
   case class ExceptionCaught(e: Throwable)
 }
 
-class ClientFSM(context: MicroserviceContext, ctx: ChannelHandlerContext) extends FSM[ClientFSM.State, ClientFSM.Data]  {
+class ClientFSM(
+  serverContext: MicroserviceContext,
+  channelContext: ChannelHandlerContext,
+  state: ClientFSM.State,
+  data: ClientFSM.Data
+) extends FSM[ClientFSM.State, ClientFSM.Data]  {
   import ClientFSM._
 
-  val (ip, port) = ctx.channel.remoteAddress match { case s: InetSocketAddress => (s.getAddress.getHostAddress, s.getPort) }
+  val (ip, port) = channelContext.channel.remoteAddress match { case s: InetSocketAddress => (s.getAddress.getHostAddress, s.getPort) }
   val logger = Logger.getLogger(getClass.getName)
 
   def streamError(error: String): State = {
-    ctx.writeAndFlush(StreamError(error))
-    ctx.writeAndFlush("</stream:stream>")
-    ctx.close
+    channelContext.writeAndFlush(StreamError(error))
+    channelContext.writeAndFlush("</stream:stream>")
+    channelContext.close
     stop
   }
 
   def streamHeaderError(id: String, error: String): State = {
-    ctx.writeAndFlush(StreamHeader(id))
+    channelContext.writeAndFlush(StreamHeader(id))
     streamError(error)
   }
 
-  startWith(WaitForStream, ClientState(ip, port, RandomUtils.randomDigits(10)))
+
+  def checkFrom(from: String, jid: JID): Boolean = {
+    from match {
+      case JID(user, server, rsrc) =>
+        user == jid.user && server == jid.server && rsrc == jid.resource
+      case _ =>
+        false
+    }
+  }
+
+  startWith(state, data)
   when(WaitForStream) {
     case Event(e @ XmlElement("stream", _, "", List()), data: ClientState) =>
       e("xmlns") match {
         case Some(XmppNS.Stream) =>
           val server = StringPrep.namePrep(e("to") getOrElse "")
-          if (!(context.xmpp.hosts contains server))
+          if (!(serverContext.xmpp.hosts contains server))
             streamHeaderError(data.streamId, StreamError.HostUnknown)
           else
             e("version") match {
               case Some("1.0") =>
-                ctx.writeAndFlush(StreamHeader(data.streamId))
-                ctx.writeAndFlush(StreamFeatures(data.authenticated))
+                channelContext.writeAndFlush(StreamHeader(data.streamId))
+                channelContext.writeAndFlush(StreamFeatures(data.authenticated))
                 data.authenticated match {
                   case false => goto(WaitForFeatureRequest) using data
-                  case true => goto(WaitForBind) using data.copy(server = StringPrep.nodePrep(server))
+                  case true => goto(WaitForBind) using data.copy(server = server)
                 }
               case _ =>
                 streamHeaderError(data.streamId, StreamError.UnsupportedVersion)
@@ -82,15 +97,15 @@ class ClientFSM(context: MicroserviceContext, ctx: ChannelHandlerContext) extend
       val decoded = new String(DatatypeConverter.parseBase64Binary(auth))
       decoded.split("\u0000") match {
         case Array(_, user, pass) =>
-          ctx.writeAndFlush(Sasl.Success)
+          channelContext.writeAndFlush(Sasl.Success)
           goto(WaitForStream) using data.copy(
             streamId = RandomUtils.randomDigits(10),
-            user = StringPrep.namePrep(user),
+            user = StringPrep.nodePrep(user),
             authenticated = true)
         case _ =>
-          ctx.writeAndFlush(Sasl.Failure)
-          ctx.writeAndFlush("</stream:stream>")
-          ctx.close
+          channelContext.writeAndFlush(Sasl.Failure)
+          channelContext.writeAndFlush("</stream:stream>")
+          channelContext.close
           stop
       }
     case Event(XmlElement(_, _, _, _), _) =>
@@ -105,20 +120,21 @@ class ClientFSM(context: MicroserviceContext, ctx: ChannelHandlerContext) extend
               bind.child("resource") match {
                 case Some(rsrc @ XmlElement("resource", _, resource, List())) =>
                   val resprep = StringPrep.resourcePrep(resource)
-                  ctx.writeAndFlush(IQ(id, "result",
+                  val jid = JID(data.user, data.server, resprep)
+                  channelContext.writeAndFlush(IQ(id, "result",
                     XmlElement("bind", List(("xmlns", XmppNS.Bind)), "", List(
-                      XmlElement("jid", List(), JID(data.user, data.server, resprep).toString, List())))))
-                    goto(WaitForSession) using data.copy(resource = resprep)
+                      XmlElement("jid", List(), jid.toString, List())))))
+                    goto(WaitForSession) using data.copy(resource = resprep, jid = Some(jid))
                 case _ =>
-                  ctx.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
+                  channelContext.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
                   stay
               }
             case _ =>
-              ctx.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
+              channelContext.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
               stay
           }
         case _ =>
-          ctx.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
+          channelContext.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
           stay
       }
     case Event(XmlElement(_, _, _, _), _) =>
@@ -130,21 +146,33 @@ class ClientFSM(context: MicroserviceContext, ctx: ChannelHandlerContext) extend
         case Some(id) =>
           e.child("session") match {
             case Some(XmlElement("session", List(("xmlns", XmppNS.Session)), "", List())) =>
-              ctx.writeAndFlush(IQ(id, "result",
+              channelContext.writeAndFlush(IQ(id, "result",
                 XmlElement("session", List(("xmlns", XmppNS.Session)), "", List())))
               goto(SessionEstablished) using data
             case _ =>
               stay
           }
         case _ =>
-          ctx.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
+          channelContext.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
           stay
       }
     case Event(XmlElement(_, _, _, _), _) =>
       stay
   }
   when(SessionEstablished) {
-    case Event(XmlElement(_, _, _, _), _) =>
+    case Event(e @ XmlElement(_, _, _, _), data: ClientState) =>
+      e("from") match {
+        case None =>
+          streamError(StreamError.InvalidFrom)
+        case Some(from) =>
+          if (checkFrom(from, data.jid.get) == false)
+            streamError(StreamError.InvalidFrom)
+          val toJID = e("to") match {
+            case None => data.jid.get.withoutResource
+            case Some(to) => JID(to)
+          }
+          stay
+      }
       stay
   }
   whenUnhandled {
@@ -154,7 +182,10 @@ class ClientFSM(context: MicroserviceContext, ctx: ChannelHandlerContext) extend
     case Event(ExceptionCaught(e), _) =>
       stop
     case Event(Disconnected, _) =>
-      logger.info("Disconnected: " + self.path.name)
+      logger.info("Disconnected: " + self.path)
+      stop
+    case Event(Replaced(ref), _) =>
+      logger.info("FSM replaced by " + ref.path)
       stop
     case Event(e @ XmlElement, _) =>
       logger.warning("Unhandled XmlElement: " + e)
@@ -162,8 +193,13 @@ class ClientFSM(context: MicroserviceContext, ctx: ChannelHandlerContext) extend
   }
   onTransition {
     case WaitForFeatureRequest -> WaitForStream =>
-      ctx.pipeline.get("xmlFrameDecoder").asInstanceOf[XmlFrameDecoder].reset
-      ctx.pipeline.get("handler").asInstanceOf[ServerHandler].reset
+      channelContext.pipeline.get("xmlFrameDecoder").asInstanceOf[XmlFrameDecoder].reset
+      channelContext.handler.asInstanceOf[ServerHandler].reset
+    case WaitForSession -> SessionEstablished =>
+      channelContext.handler.asInstanceOf[ServerHandler].replaceFSM(
+        channelContext,
+        SessionEstablished,
+        stateData.asInstanceOf[ClientState])
     case from -> to => println("Transition from " + from + " to " + to)
   }
 }

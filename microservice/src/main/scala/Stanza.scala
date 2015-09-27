@@ -1,9 +1,53 @@
 package main.scala
 
-case class JID(user: String, server: String, resource: String) {
-  def apply(user: String, server: String, resource: String): JID = {
-    JID(StringPrep.namePrep(user), StringPrep.nodePrep(server),
+import shapeless._
+import syntax.std.tuple._
+
+object nullToEmptyString extends Poly1 {
+  implicit def caseString = at[String](s => if (s != null) s else "")
+}
+
+object JID {
+
+  def apply(user: String, server: String, resource: String): JID =
+    new JID(StringPrep.nodePrep(user),
+      StringPrep.namePrep(server),
       StringPrep.resourcePrep(resource))
+
+  def apply(jid: String): JID = {
+    val function = (user: String, server: String, resource: String) =>
+      apply(user, server, resource)
+    function.tupled(unapply(jid).get)
+  }
+
+  def unapply(jid: String): Option[(String, String, String)] = {
+    val pattern = "^(?:([^ @]+)@)?([^/ ]+)(?:/([^/ ]+))?$".r
+    pattern.findFirstMatchIn(jid) match {
+      case None => None
+      case Some(m) =>
+        Some((m.group(1), m.group(2), m.group(3)) map nullToEmptyString)
+    }
+  }
+
+  def unapply(jid: JID): Option[(String, String, String)] = {
+    Some(jid.user, jid.server, jid.resource)
+  }
+}
+
+class JID private (val user: String, val server: String, val resource: String) {
+  def copy(
+    user: String = this.user,
+    server: String = this.server,
+    resource: String = this.resource): JID =
+    new JID(user, server, resource)
+
+  def equals(that: JID): Boolean =
+    this.user.equals(that.user) &&
+    this.server.equals(that.server) &&
+    this.resource.equals(that.resource)
+
+  def withoutResource: JID = {
+    new JID(user, server, "")
   }
 
   override def toString = user + "@" + server + "/" + resource
@@ -62,6 +106,7 @@ object Sasl {
 object StreamError {
   val HostUnknown = "host-unknown"
   val InvalidNamespace = "invalid-namespace"
+  val InvalidFrom = "invalid-from"
   val UnsupportedVersion = "unsupported-version"
   val XmlNotWellFormed = "xml-not-well-formed"
 

@@ -7,7 +7,7 @@ object StringPrep {
   private val namePrep = IcuPrep.getInstance(IcuPrep.RFC3491_NAMEPREP)
   private val resourcePrep = IcuPrep.getInstance(IcuPrep.RFC3920_RESOURCEPREP)
 
-  def nodePrep(node: String): String = nodePrep.prepare(node, IcuPrep.DEFAULT)
-  def namePrep(name: String): String = namePrep.prepare(name, IcuPrep.DEFAULT)
+  def nodePrep(node: String): String = nodePrep.prepare(node, IcuPrep.DEFAULT).toLowerCase
+  def namePrep(name: String): String = namePrep.prepare(name, IcuPrep.DEFAULT).toLowerCase
   def resourcePrep(resource: String): String = resourcePrep.prepare(resource, IcuPrep.DEFAULT)
 }

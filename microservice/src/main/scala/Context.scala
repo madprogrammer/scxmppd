@@ -16,8 +16,8 @@ abstract class Context(val config: Config) {
 
 class MicroserviceContext extends Context {
   val endpoint = new EndpointSettings(config)
-  val keystore = new KeystoreSettings(config)
   val xmpp = new XmppSettigns(config)
+  val ssl = new SslSettings(config)
 }
 
 class EndpointSettings(config: Config) {
@@ -25,10 +25,11 @@ class EndpointSettings(config: Config) {
   val port = config.getInt("endpoint.port")
 }
 
-class KeystoreSettings(config: Config) {
-  config.checkValid(ConfigFactory.defaultReference(), "keystore")
-  val location = config.getString("keystore.location")
-  val password = config.getString("keystore.password")
+class SslSettings(config: Config) {
+  config.checkValid(ConfigFactory.defaultReference(), "ssl")
+  val certfile = config.getString("ssl.certfile")
+  val keyfile = config.getString("ssl.keyfile")
+  val provider = config.getString("ssl.provider")
 }
 
 class XmppSettigns(config: Config) {

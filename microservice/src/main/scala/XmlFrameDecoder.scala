@@ -8,8 +8,6 @@ import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.codec.ByteToMessageDecoder
 
-import java.util.logging.Logger
-
 import com.fasterxml.aalto.AsyncXMLStreamReader
 import com.fasterxml.aalto.evt.EventAllocatorImpl
 import com.fasterxml.aalto.stax.InputFactoryImpl
@@ -18,7 +16,6 @@ class XmlFrameDecoder extends ByteToMessageDecoder {
 
   val factory = new InputFactoryImpl()
   var reader = factory.createAsyncForByteBuffer
-  val logger = Logger.getLogger(getClass.getName)
   val allocator = EventAllocatorImpl.getDefaultInstance
 
   def reset() {
