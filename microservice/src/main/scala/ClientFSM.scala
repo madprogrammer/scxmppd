@@ -29,6 +29,7 @@ object ClientFSM {
   // Accepted commands
   case object Disconnected
   case object ParseError
+  case class Incoming(from: JID, to: JID, element: XmlElement)
   case class Replaced(ref: ActorRef)
   case class ExceptionCaught(e: Throwable)
 }
@@ -43,6 +44,7 @@ class ClientFSM(
 
   val (ip, port) = channelContext.channel.remoteAddress match { case s: InetSocketAddress => (s.getAddress.getHostAddress, s.getPort) }
   val logger = Logger.getLogger(getClass.getName)
+  val router = context.actorSelection("/user/router")
 
   def streamError(error: String): State = {
     channelContext.writeAndFlush(StreamError(error))
@@ -64,6 +66,10 @@ class ClientFSM(
       case _ =>
         false
     }
+  }
+
+  def replaceFromTo(from: JID, to: JID, element: XmlElement): XmlElement = {
+    element.setAttr("from", from.toString).setAttr("to", to.toString)
   }
 
   startWith(state, data)
@@ -116,13 +122,13 @@ class ClientFSM(
       e("id") match {
         case Some(id) =>
           e.child("bind") match {
-            case Some(bind @ XmlElement("bind", List(("xmlns", XmppNS.Bind)), _, _)) =>
+            case Some(bind @ XmlElement("bind", List("xmlns" -> XmppNS.Bind), _, _)) =>
               bind.child("resource") match {
                 case Some(rsrc @ XmlElement("resource", _, resource, List())) =>
                   val resprep = StringPrep.resourcePrep(resource)
                   val jid = JID(data.user, data.server, resprep)
                   channelContext.writeAndFlush(IQ(id, "result",
-                    XmlElement("bind", List(("xmlns", XmppNS.Bind)), "", List(
+                    XmlElement("bind", List("xmlns" -> XmppNS.Bind), "", List(
                       XmlElement("jid", List(), jid.toString, List())))))
                     goto(WaitForSession) using data.copy(resource = resprep, jid = Some(jid))
                 case _ =>
@@ -145,9 +151,9 @@ class ClientFSM(
       e("id") match {
         case Some(id) =>
           e.child("session") match {
-            case Some(XmlElement("session", List(("xmlns", XmppNS.Session)), "", List())) =>
+            case Some(XmlElement("session", List("xmlns" -> XmppNS.Session), "", List())) =>
               channelContext.writeAndFlush(IQ(id, "result",
-                XmlElement("session", List(("xmlns", XmppNS.Session)), "", List())))
+                XmlElement("session", List("xmlns" -> XmppNS.Session), "", List())))
               goto(SessionEstablished) using data
             case _ =>
               stay
@@ -160,18 +166,33 @@ class ClientFSM(
       stay
   }
   when(SessionEstablished) {
-    case Event(e @ XmlElement(_, _, _, _), data: ClientState) =>
+    // Event arrived from client connection
+    case Event(e @ XmlElement(name, _, _, _), data: ClientState) =>
+      val newEl = e.removeAttr("xmlns")
       e("from") match {
         case None =>
-          streamError(StreamError.InvalidFrom)
         case Some(from) =>
           if (checkFrom(from, data.jid.get) == false)
             streamError(StreamError.InvalidFrom)
-          val toJID = e("to") match {
-            case None => data.jid.get.withoutResource
-            case Some(to) => JID(to)
-          }
-          stay
+      }
+      val toJID = e("to") match {
+        case None => data.jid.get.withoutResource
+        case Some(to) => JID(to)
+      }
+      name match {
+        case "presence" =>
+          // TODO: don't ignore presence
+        case "iq" | "message" =>
+          router ! Route(data.jid.get, toJID, newEl)
+        case _ =>
+      }
+      stay
+    // Event addressed to client
+    case Event(Incoming(from, to, e @ XmlElement(name, _, _, _)), data: ClientState) =>
+      name match {
+        case "message" =>
+          channelContext.writeAndFlush(replaceFromTo(from, to, e))
+        case _ =>
       }
       stay
   }

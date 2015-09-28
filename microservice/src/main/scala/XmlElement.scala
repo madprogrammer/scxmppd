@@ -2,13 +2,15 @@ package main.scala
 
 case class XmlElement(name: String, attrs: List[(String, String)], var body: String, var children: List[XmlElement]) {
 
-  def apply(name: String): Option[String] = {
-    XmlElement.attr(name, attrs)
-  }
+  def apply(name: String) = XmlElement.attr(name, attrs)
 
-  def child(name: String): Option[XmlElement] = {
-    XmlElement.child(name, children)
-  }
+  def child(name: String) = XmlElement.child(name, children)
+
+  def setAttr(name: String, value: String) =
+    XmlElement(this.name, (attrs.toMap + (name -> value)).toList, body, children)
+
+  def removeAttr(name: String) =
+    XmlElement(this.name, (attrs.toMap - name).toList, body, children)
 
 }
 

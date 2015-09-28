@@ -4,7 +4,6 @@ import java.util.logging.Logger
 import io.netty.handler.codec.DecoderException
 import io.netty.channel.{Channel, ChannelHandlerContext, SimpleChannelInboundHandler}
 import java.net.InetSocketAddress
-import java.net.URLEncoder
 import javax.xml.stream.events._
 import scala.collection.mutable.Stack
 import scala.collection.JavaConversions._
@@ -15,37 +14,34 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class ServerHandler(context: MicroserviceContext, manager: ActorRef) extends SimpleChannelInboundHandler[XMLEvent] {
+class ServerHandler(context: MicroserviceContext, actorSystem: ActorSystem) extends SimpleChannelInboundHandler[XMLEvent] {
 
+  val manager = actorSystem.actorSelection("/user/c2s")
   val logger = Logger.getLogger(getClass.getName)
   var nodes: Stack[XmlElement] = Stack()
   var fsm: ActorRef = _
   var depth = 0
 
-  def getAttributeTuple(attr: Attribute): (String, String) = {
-    return (
-      attr.getName.getPrefix match {
-        case prefix: String if prefix.length > 0 =>
-          prefix + ":" + attr.getName.getLocalPart
-        case prefix: String =>
-          attr.getName.getLocalPart
-      },
-      attr.getValue
-    )
+  def getAttributeTuple(attr: Attribute) = {
+    (attr.getName.getPrefix match {
+      case prefix: String if prefix.length > 0 =>
+        prefix + ":" + attr.getName.getLocalPart
+      case prefix: String =>
+        attr.getName.getLocalPart
+    }, attr.getValue)
   }
 
   def getXmlElement(e: StartElement): XmlElement = {
     val ns = e.getName.getNamespaceURI
-    val element = XmlElement(
+    XmlElement(
       e.getName.getLocalPart,
       ns match {
         case uri: String if uri.length > 0 =>
-          ("xmlns", ns) :: e.getAttributes.map(x => getAttributeTuple(x.asInstanceOf[Attribute])).toList
+          "xmlns" -> ns :: e.getAttributes.map(x => getAttributeTuple(x.asInstanceOf[Attribute])).toList
         case uri: String =>
           e.getAttributes.map(x => getAttributeTuple(x.asInstanceOf[Attribute])).toList
       },
       "", List())
-    return element
   }
 
   def createFSM(ctx: ChannelHandlerContext): ActorRef = {
@@ -65,13 +61,8 @@ class ServerHandler(context: MicroserviceContext, manager: ActorRef) extends Sim
       case None =>
         throw new IllegalArgumentException("JID was not initialized")
       case Some(jid) =>
-        val name = Array(
-          URLEncoder.encode(jid.user),
-          jid.server,
-          URLEncoder.encode(jid.resource)
-        ).mkString(":")
         val previous = fsm
-        val future = manager ? CreateClientFSM(ctx, name, state, data)
+        val future = manager ? CreateClientFSM(ctx, jid.toActorPath, state, data)
         fsm = Await.result(future, timeout.duration).asInstanceOf[ActorRef]
         previous ! ClientFSM.Replaced(fsm)
     }
@@ -98,7 +89,6 @@ class ServerHandler(context: MicroserviceContext, manager: ActorRef) extends Sim
       case e: StartElement if depth == 0 =>
         depth += 1
         val element = getXmlElement(e)
-        logger.warning(element.toString)
         fsm ! element
       case e: StartElement if depth >= 1 =>
         val element = getXmlElement(e)
@@ -113,7 +103,6 @@ class ServerHandler(context: MicroserviceContext, manager: ActorRef) extends Sim
         if (nodes.length > 0) {
           val element = nodes.pop
           if (depth == 1) {
-            logger.warning(element.toString)
             fsm ! element
           }
         }

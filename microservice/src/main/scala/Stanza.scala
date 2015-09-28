@@ -2,6 +2,7 @@ package main.scala
 
 import shapeless._
 import syntax.std.tuple._
+import java.net.URLEncoder
 
 object nullToEmptyString extends Poly1 {
   implicit def caseString = at[String](s => if (s != null) s else "")
@@ -49,6 +50,8 @@ class JID private (val user: String, val server: String, val resource: String) {
   def withoutResource: JID = {
     new JID(user, server, "")
   }
+
+  def toActorPath = URLEncoder.encode(user) + ":" + server + ":" + URLEncoder.encode(resource)
 
   override def toString = user + "@" + server + "/" + resource
 }

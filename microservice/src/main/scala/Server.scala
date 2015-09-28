@@ -31,11 +31,12 @@ class Server(context: MicroserviceContext) {
 
       val actorSystem = ActorSystem("system")
       actorSystem.actorOf(Props[ClusterListener], "clusterListener")
-      val manager = actorSystem.actorOf(Props(classOf[C2SManager], context, actorSystem), "c2s")
+      actorSystem.actorOf(Props[Router], "router")
+      actorSystem.actorOf(Props(classOf[C2SManager], context, actorSystem), "c2s")
 
       val inet: InetSocketAddress = new InetSocketAddress(context.endpoint.port)
       val bootstrap = new ServerBootstrap()
-      bootstrap.group(group).channel(clazz).childHandler(new ServerInitializer(context, sslContext, manager))
+      bootstrap.group(group).channel(clazz).childHandler(new ServerInitializer(context, sslContext, actorSystem))
       bootstrap.childOption(ChannelOption.ALLOCATOR, new PooledByteBufAllocator(true))
       bootstrap.bind(inet).sync.channel.closeFuture.sync
     } finally {
