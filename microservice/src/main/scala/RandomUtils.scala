@@ -1,7 +1,6 @@
 package main.scala
 
 import java.util.concurrent.ThreadLocalRandom
-import scala.util.Random.javaRandomToRandom
 
 object RandomUtils {
 

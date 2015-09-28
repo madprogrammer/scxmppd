@@ -2,10 +2,10 @@ package main.scala
 
 import java.util.logging.Logger
 import io.netty.handler.codec.DecoderException
-import io.netty.channel.{Channel, ChannelHandlerContext, SimpleChannelInboundHandler}
+import io.netty.channel.{ChannelHandlerContext, SimpleChannelInboundHandler}
 import java.net.InetSocketAddress
 import javax.xml.stream.events._
-import scala.collection.mutable.Stack
+import scala.collection.mutable
 import scala.collection.JavaConversions._
 import akka.actor._
 import akka.pattern.ask
@@ -18,7 +18,7 @@ class ServerHandler(context: MicroserviceContext, actorSystem: ActorSystem) exte
 
   val manager = actorSystem.actorSelection("/user/c2s")
   val logger = Logger.getLogger(getClass.getName)
-  var nodes: Stack[XmlElement] = Stack()
+  var nodes: mutable.Stack[XmlElement] = mutable.Stack()
   var fsm: ActorRef = _
   var depth = 0
 
@@ -70,7 +70,7 @@ class ServerHandler(context: MicroserviceContext, actorSystem: ActorSystem) exte
 
   def reset() {
     depth = 0
-    nodes.clear
+    nodes.clear()
   }
 
   override def channelActive(ctx: ChannelHandlerContext) {
@@ -92,23 +92,23 @@ class ServerHandler(context: MicroserviceContext, actorSystem: ActorSystem) exte
         fsm ! element
       case e: StartElement if depth >= 1 =>
         val element = getXmlElement(e)
-        if (nodes.length > 0) {
-          val parent = nodes(0)
+        if (nodes.nonEmpty) {
+          val parent = nodes.head
           parent.children = element :: parent.children
         }
         nodes.push(element)
         depth += 1
       case e: EndElement =>
         depth -= 1
-        if (nodes.length > 0) {
-          val element = nodes.pop
+        if (nodes.nonEmpty) {
+          val element = nodes.pop()
           if (depth == 1) {
             fsm ! element
           }
         }
       case e: Characters =>
         if (!e.isWhiteSpace) {
-          nodes(0).body = e.getData
+          nodes.head.body = e.getData
         }
       case e: EndDocument =>
       case _ =>
@@ -118,7 +118,7 @@ class ServerHandler(context: MicroserviceContext, actorSystem: ActorSystem) exte
 
   override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable) {
     logger.warning("Unexpected exception: " + cause)
-    cause.printStackTrace
+    cause.printStackTrace()
     cause match {
       case e: DecoderException =>
         fsm ! ClientFSM.ParseError

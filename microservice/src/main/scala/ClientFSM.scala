@@ -50,7 +50,7 @@ class ClientFSM(
     channelContext.writeAndFlush(StreamError(error))
     channelContext.writeAndFlush("</stream:stream>")
     channelContext.close
-    stop
+    stop()
   }
 
   def streamHeaderError(id: String, error: String): State = {
@@ -96,7 +96,7 @@ class ClientFSM(
           streamHeaderError(data.streamId, StreamError.InvalidNamespace)
       }
     case Event(XmlElement(_, _, _, _), _) =>
-      stay
+      stay()
   }
   when(WaitForFeatureRequest) {
     case Event(e @ XmlElement("auth", _, auth, List()), data: ClientState) =>
@@ -112,10 +112,10 @@ class ClientFSM(
           channelContext.writeAndFlush(Sasl.Failure)
           channelContext.writeAndFlush("</stream:stream>")
           channelContext.close
-          stop
+          stop()
       }
     case Event(XmlElement(_, _, _, _), _) =>
-      stay
+      stay()
   }
   when(WaitForBind) {
     case Event(e @ XmlElement("iq", _, _, _), data: ClientState) =>
@@ -133,18 +133,18 @@ class ClientFSM(
                     goto(WaitForSession) using data.copy(resource = resprep, jid = Some(jid))
                 case _ =>
                   channelContext.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
-                  stay
+                  stay()
               }
             case _ =>
               channelContext.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
-              stay
+              stay()
           }
         case _ =>
           channelContext.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
-          stay
+          stay()
       }
     case Event(XmlElement(_, _, _, _), _) =>
-      stay
+      stay()
   }
   when(WaitForSession) {
     case Event(e @ XmlElement("iq", _, _, _), data: ClientState) =>
@@ -156,14 +156,14 @@ class ClientFSM(
                 XmlElement("session", List("xmlns" -> XmppNS.Session), "", List())))
               goto(SessionEstablished) using data
             case _ =>
-              stay
+              stay()
           }
         case _ =>
           channelContext.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
-          stay
+          stay()
       }
     case Event(XmlElement(_, _, _, _), _) =>
-      stay
+      stay()
   }
   when(SessionEstablished) {
     // Event arrived from client connection
@@ -172,7 +172,7 @@ class ClientFSM(
       e("from") match {
         case None =>
         case Some(from) =>
-          if (checkFrom(from, data.jid.get) == false)
+          if (!checkFrom(from, data.jid.get))
             streamError(StreamError.InvalidFrom)
       }
       val toJID = e("to") match {
@@ -186,7 +186,7 @@ class ClientFSM(
           router ! Route(data.jid.get, toJID, newEl)
         case _ =>
       }
-      stay
+      stay()
     // Event addressed to client
     case Event(Incoming(from, to, e @ XmlElement(name, _, _, _)), data: ClientState) =>
       name match {
@@ -194,28 +194,28 @@ class ClientFSM(
           channelContext.writeAndFlush(replaceFromTo(from, to, e))
         case _ =>
       }
-      stay
+      stay()
   }
   whenUnhandled {
     case Event(ParseError, _) =>
       streamError(StreamError.XmlNotWellFormed)
-      stop
+      stop()
     case Event(ExceptionCaught(e), _) =>
-      stop
+      stop()
     case Event(Disconnected, _) =>
       logger.info("Disconnected: " + self.path)
-      stop
+      stop()
     case Event(Replaced(ref), _) =>
       logger.info("FSM replaced by " + ref.path)
-      stop
+      stop()
     case Event(e @ XmlElement, _) =>
       logger.warning("Unhandled XmlElement: " + e)
-      stay
+      stay()
   }
   onTransition {
     case WaitForFeatureRequest -> WaitForStream =>
-      channelContext.pipeline.get("xmlFrameDecoder").asInstanceOf[XmlFrameDecoder].reset
-      channelContext.handler.asInstanceOf[ServerHandler].reset
+      channelContext.pipeline.get("xmlFrameDecoder").asInstanceOf[XmlFrameDecoder].reset()
+      channelContext.handler.asInstanceOf[ServerHandler].reset()
     case WaitForSession -> SessionEstablished =>
       channelContext.handler.asInstanceOf[ServerHandler].replaceFSM(
         channelContext,

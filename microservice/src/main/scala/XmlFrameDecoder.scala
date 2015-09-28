@@ -1,8 +1,6 @@
 package main.scala
 
-import java.util.List
-
-import javax.xml.stream.events.XMLEvent
+import java.util
 
 import io.netty.buffer.ByteBuf
 import io.netty.channel.ChannelHandlerContext
@@ -23,7 +21,7 @@ class XmlFrameDecoder extends ByteToMessageDecoder {
   }
 
   @throws[Exception]
-  override def decode(ctx: ChannelHandlerContext, buffer: ByteBuf, out: List[Object]) {
+  override def decode(ctx: ChannelHandlerContext, buffer: ByteBuf, out: util.List[Object]) {
     reader.getInputFeeder.feedInput(buffer.nioBuffer)
     buffer.skipBytes(buffer.readableBytes)
 

@@ -1,7 +1,7 @@
 package main.scala
 
+import java.util
 import javax.xml.stream._
-import java.util.List
 import java.io.StringWriter
 import java.nio.CharBuffer
 import java.nio.charset.Charset
@@ -27,15 +27,15 @@ class XmlElementEncoder extends MessageToMessageEncoder[XmlElement] {
   }
 
   @throws[Exception]
-  override def encode(ctx: ChannelHandlerContext, message: XmlElement, out: List[Object]) {
+  override def encode(ctx: ChannelHandlerContext, message: XmlElement, out: util.List[Object]) {
     val stringWriter = new StringWriter
     val eventWriter = outputFactory.createXMLEventWriter(stringWriter)
 
     writeElement(message, eventWriter)
 
-    eventWriter.flush
+    eventWriter.flush()
     out.add(ByteBufUtil.encodeString(ctx.alloc, CharBuffer.wrap(stringWriter.toString), Charset.defaultCharset))
-    eventWriter.close
+    eventWriter.close()
   }
 
 }
