@@ -51,9 +51,13 @@ class JID private (val user: String, val server: String, val resource: String) {
     new JID(user, server, "")
   }
 
-  def toActorPath = URLEncoder.encode(user) + ":" + server + ":" + URLEncoder.encode(resource)
+  def toActorPath = URLEncoder.encode(user) + ":" + server + ":" +
+    (if (!resource.isEmpty) URLEncoder.encode(resource) else "*")
 
-  override def toString = user + "@" + server + "/" + resource
+  override def toString =
+    (if (!user.isEmpty) user + "@" else "") +
+    server +
+    (if (!resource.isEmpty) "/" + resource else "")
 }
 
 object XmppNS {
