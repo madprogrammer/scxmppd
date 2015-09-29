@@ -34,7 +34,8 @@ class Server(context: MicroserviceContext) {
       actorSystem.actorOf(Props[Router], "router")
       actorSystem.actorOf(Props(classOf[C2SManager], context, actorSystem), "c2s")
 
-      val inet: InetSocketAddress = new InetSocketAddress(context.endpoint.port)
+      val inet: InetSocketAddress = new InetSocketAddress(
+        context.endpoint.address, context.endpoint.port)
       val bootstrap = new ServerBootstrap()
       bootstrap.group(group).channel(clazz).childHandler(new ServerInitializer(context, sslContext, actorSystem))
       bootstrap.childOption(ChannelOption.ALLOCATOR, new PooledByteBufAllocator(true))

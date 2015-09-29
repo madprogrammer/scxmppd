@@ -22,6 +22,7 @@ class MicroserviceContext extends Context {
 
 class EndpointSettings(config: Config) {
   config.checkValid(ConfigFactory.defaultReference(), "endpoint")
+  val address = config.getString("endpoint.address")
   val port = config.getInt("endpoint.port")
 }
 
