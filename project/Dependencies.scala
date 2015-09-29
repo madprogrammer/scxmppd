@@ -14,6 +14,7 @@ object Dependencies {
     private val version = "2.3.14"
     val actor = "com.typesafe.akka" %% "akka-actor" % version
     val cluster = "com.typesafe.akka" %% "akka-cluster" % version
+    val contrib = "com.typesafe.akka" %% "akka-contrib" % version
   }
 
   private val config = "com.typesafe" % "config" % "1.2.1"
@@ -21,7 +22,10 @@ object Dependencies {
   private val aalto  = "com.fasterxml" % "aalto-xml" % "0.9.14-SNAPSHOT"
   private val shapeless = "com.chuusai" %% "shapeless" % "2.2.5"
 
-  val microservice = dependencies(Netty.all, Netty.epoll, Netty.tcnative, Akka.actor, Akka.cluster, config, icu4j, aalto, shapeless)
+  val microservice = dependencies(
+    Netty.all, Netty.epoll, Netty.tcnative,
+    Akka.actor, Akka.cluster, Akka.contrib,
+    config, icu4j, aalto, shapeless)
 
   private def dependencies(modules: ModuleID*): Seq[Setting[_]] = Seq(libraryDependencies ++= modules)
 }

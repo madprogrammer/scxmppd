@@ -3,6 +3,7 @@ package main.scala
 import shapeless._
 import syntax.std.tuple._
 import java.net.URLEncoder
+import java.io.Serializable
 
 object nullToEmptyString extends Poly1 {
   implicit def caseString = at[String](s => if (s != null) s else "")
@@ -35,7 +36,7 @@ object JID {
   }
 }
 
-class JID private (val user: String, val server: String, val resource: String) {
+class JID private (val user: String, val server: String, val resource: String) extends Serializable {
   def copy(
     user: String = this.user,
     server: String = this.server,

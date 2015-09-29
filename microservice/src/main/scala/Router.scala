@@ -6,18 +6,16 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import akka.event.LoggingReceive
 import akka.actor._
 import akka.util.Timeout
+import akka.contrib.pattern.{DistributedPubSubMediator, DistributedPubSubExtension}
 
 case class Route(from: JID, to: JID, element: XmlElement)
 
 class Router extends Actor with ActorLogging {
+  import DistributedPubSubMediator.Send
+  val mediator = DistributedPubSubExtension(context.system).mediator
+
   def receive = LoggingReceive {
     case Route(from, to, element) =>
-      implicit val timeout = Timeout(5 seconds)
-      context.actorSelection("/user/c2s/%s".format(to.toActorPath)).resolveOne onComplete {
-        case Success(dest) =>
-          dest ! ClientFSM.Incoming(from, to, element)
-        case Failure(ex) =>
-          // TODO: handle non-resolved actor
-      }
+      mediator ! Send("/user/c2s/%s".format(to.toActorPath), ClientFSM.Incoming(from, to, element), false)
     }
 }
