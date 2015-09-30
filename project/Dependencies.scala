@@ -19,7 +19,7 @@ object Dependencies {
 
   private val config = "com.typesafe" % "config" % "1.2.1"
   private val icu4j  = "com.ibm.icu" % "icu4j" % "55.1"
-  private val aalto  = "com.fasterxml" % "aalto-xml" % "0.9.14-SNAPSHOT"
+  private val aalto  = "com.fasterxml" % "aalto-xml" % "0.9.11"
   private val shapeless = "com.chuusai" %% "shapeless" % "2.2.5"
 
   val microservice = dependencies(
