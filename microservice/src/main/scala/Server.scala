@@ -31,7 +31,7 @@ class Server(context: MicroserviceContext) {
 
       val actorSystem = ActorSystem("system")
       actorSystem.actorOf(Props[ClusterListener], "clusterListener")
-      actorSystem.actorOf(Props[Router], "router")
+      actorSystem.actorOf(Props(classOf[Router], context), "router")
       actorSystem.actorOf(Props(classOf[C2SManager], context, actorSystem), "c2s")
 
       val inet: InetSocketAddress = new InetSocketAddress(

@@ -1,6 +1,7 @@
 package main.scala
 
 import com.typesafe.config.{Config, ConfigFactory}
+import akka.actor.ReflectiveDynamicAccess
 
 abstract class Context(val config: Config) {
   def this() {
@@ -12,12 +13,15 @@ abstract class Context(val config: Config) {
       }
     }
   }
+
+  val dynamicAccess = new ReflectiveDynamicAccess(getClass.getClassLoader)
 }
 
 class MicroserviceContext extends Context {
   val endpoint = new EndpointSettings(config)
   val xmpp = new XmppSettigns(config)
   val ssl = new SslSettings(config)
+  val routing = new RoutingSettings(config)
 }
 
 class EndpointSettings(config: Config) {
@@ -36,5 +40,10 @@ class SslSettings(config: Config) {
 class XmppSettigns(config: Config) {
   config.checkValid(ConfigFactory.defaultReference(), "xmpp")
   val hosts = config.getStringList("xmpp.hosts")
+}
+
+class RoutingSettings(config: Config) {
+  config.checkValid(ConfigFactory.defaultReference(), "routing")
+  val handlers = config.getStringList("routing.handlers")
 }
 

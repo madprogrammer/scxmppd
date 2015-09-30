@@ -29,7 +29,6 @@ object ClientFSM {
   // Accepted commands
   case object Disconnected
   case object ParseError
-  case class Incoming(from: JID, to: JID, element: XmlElement)
   case class Replaced(ref: ActorRef)
   case class ExceptionCaught(e: Throwable)
 }
@@ -188,7 +187,7 @@ class ClientFSM(
       }
       stay()
     // Event addressed to client
-    case Event(Incoming(from, to, e @ XmlElement(name, _, _, _)), data: ClientState) =>
+    case Event(Route(from, to, e @ XmlElement(name, _, _, _)), data: ClientState) =>
       name match {
         case "message" =>
           channelContext.writeAndFlush(replaceFromTo(from, to, e))
