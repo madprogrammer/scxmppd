@@ -44,6 +44,6 @@ class XmppSettigns(config: Config) {
 
 class RoutingSettings(config: Config) {
   config.checkValid(ConfigFactory.defaultReference(), "routing")
-  val handlers = config.getStringList("routing.handlers")
+  val pipeline = config.getStringList("routing.pipeline")
 }
 

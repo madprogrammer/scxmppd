@@ -2,7 +2,7 @@ package main.scala
 
 import java.util.logging.Logger
 
-class LoggingHandler extends RoutingHandler {
+class LoggingHandler extends PipelineHandler {
   override val name = "loggingHandler"
   val logger = Logger.getLogger(name)
 

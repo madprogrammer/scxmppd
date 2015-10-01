@@ -18,10 +18,10 @@ class Router(serverContext: MicroserviceContext) extends Actor with ActorLogging
   val logger = Logger.getLogger(getClass.getName)
   val pipeline = constructPipeline
 
-  def constructPipeline: immutable.ListMap[String, RoutingHandler] = {
+  def constructPipeline: immutable.ListMap[String, PipelineHandler] = {
     immutable.ListMap((for (
-      name <- serverContext.routing.handlers.toList;
-      clazz = serverContext.dynamicAccess.createInstanceFor[RoutingHandler](name, immutable.Seq.empty).get
+      name <- serverContext.routing.pipeline.toList;
+      clazz = serverContext.dynamicAccess.createInstanceFor[PipelineHandler](name, immutable.Seq.empty).get
     ) yield (clazz.name -> clazz)): _*)
   }
 
