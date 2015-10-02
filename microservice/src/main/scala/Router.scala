@@ -13,7 +13,7 @@ import java.util.logging.Logger
 case class Route(from: JID, to: JID, element: XmlElement)
 
 class Router(serverContext: MicroserviceContext) extends Actor with ActorLogging {
-  import CustomDistributedPubSubMediator.SendToAll
+  import CustomDistributedPubSubMediator.{SendToAll, Publish}
   val mediator = CustomDistributedPubSubExtension(context.system).mediator
   val logger = Logger.getLogger(getClass.getName)
   val pipeline = constructPipeline
@@ -30,6 +30,7 @@ class Router(serverContext: MicroserviceContext) extends Actor with ActorLogging
       pipeline.values.foldLeft[Option[Route]](Some(route)) { case (acc, handler) => handler.handle(route, acc) } match {
         case Some(result) =>
           mediator ! SendToAll("/user/c2s/%s".format(to.toActorPath), result, false)
+          mediator ! Publish(Topics.MessageRouted, Hooks.MessageRouted(result))
         case None =>
           logger.info("Message %s discarded after pipeline processing".format(route))
       }

@@ -64,6 +64,7 @@ class ServerHandler(context: MicroserviceContext, actorSystem: ActorSystem) exte
         val previous = fsm
         val future = manager ? CreateClientFSM(ctx, jid.toActorPath, state, data)
         fsm = Await.result(future, timeout.duration).asInstanceOf[ActorRef]
+        fsm ! ClientFSM.Initialize
         previous ! ClientFSM.Replaced(fsm)
     }
   }

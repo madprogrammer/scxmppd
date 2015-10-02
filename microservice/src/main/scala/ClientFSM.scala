@@ -29,6 +29,7 @@ object ClientFSM {
   // Accepted commands
   case object Disconnected
   case object ParseError
+  case object Initialize
   case class Replaced(ref: ActorRef)
   case class ExceptionCaught(e: Throwable)
 }
@@ -39,8 +40,10 @@ class ClientFSM(
   state: ClientFSM.State,
   data: ClientFSM.Data
 ) extends FSM[ClientFSM.State, ClientFSM.Data]  {
+  import CustomDistributedPubSubMediator.Publish
   import ClientFSM._
 
+  val mediator = CustomDistributedPubSubExtension(context.system).mediator
   val (ip, port) = channelContext.channel.remoteAddress match { case s: InetSocketAddress => (s.getAddress.getHostAddress, s.getPort) }
   val logger = Logger.getLogger(getClass.getName)
   val router = context.actorSelection("/user/router")
@@ -193,6 +196,9 @@ class ClientFSM(
           channelContext.writeAndFlush(replaceFromTo(from, to, e))
         case _ =>
       }
+      stay()
+    case Event(Initialize, data: ClientState) =>
+      mediator ! Publish(Topics.SessionOpened, Hooks.SessionOpened(data.jid.get, self))
       stay()
   }
   whenUnhandled {
