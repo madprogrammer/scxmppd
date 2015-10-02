@@ -92,8 +92,9 @@ object CustomDistributedPubSubMediator {
   }
   @SerialVersionUID(1L) case class SubscribeAck(subscribe: Subscribe)
   @SerialVersionUID(1L) case class UnsubscribeAck(unsubscribe: Unsubscribe)
-  @SerialVersionUID(1L) case class Publish(topic: String, msg: Any, sendOneMessageToEachGroup: Boolean) extends DistributedPubSubMessage {
-    def this(topic: String, msg: Any) = this(topic, msg, sendOneMessageToEachGroup = false)
+  @SerialVersionUID(1L) case class Publish(topic: String, msg: Any, sendOneMessageToEachGroup: Boolean, onlyLocal: Boolean) extends DistributedPubSubMessage {
+    def this(topic: String, msg: Any) = this(topic, msg, sendOneMessageToEachGroup = false, onlyLocal = true)
+    def this(topic: String, msg: Any, onlyLocal: Boolean) = this(topic, msg, sendOneMessageToEachGroup = false, onlyLocal)
   }
   object Publish {
     def apply(topic: String, msg: Any) = new Publish(topic, msg)
@@ -344,7 +345,7 @@ class CustomDistributedPubSubMediator(
 
   val removedTimeToLiveMillis = removedTimeToLive.toMillis
 
-  //Start periodic gossip to random nodes in cluster
+  // Start periodic gossip to random nodes in cluster
   import context.dispatcher
   val gossipTask = context.system.scheduler.schedule(gossipInterval, gossipInterval, self, GossipTick)
   val pruneInterval: FiniteDuration = removedTimeToLive / 2
@@ -400,11 +401,11 @@ class CustomDistributedPubSubMediator(
     case SendToAll(path, msg, skipSenderNode) =>
       publish(path, msg, skipSenderNode)
 
-    case Publish(topic, msg, sendOneMessageToEachGroup) =>
+    case Publish(topic, msg, sendOneMessageToEachGroup, onlyLocal) =>
       if (sendOneMessageToEachGroup)
         publishToEachGroup(mkKey(self.path / encName(topic)), msg)
       else
-        publish(mkKey(self.path / encName(topic)), msg)
+        publish(mkKey(self.path / encName(topic)), msg, false, onlyLocal)
 
     case Put(ref: ActorRef) =>
       if (ref.path.address.hasGlobalScope)
@@ -513,11 +514,11 @@ class CustomDistributedPubSubMediator(
       sender() ! count
   }
 
-  def publish(path: String, msg: Any, allButSelf: Boolean = false): Unit = {
+  def publish(path: String, msg: Any, allButSelf: Boolean = false, onlyLocal: Boolean = false): Unit = {
     val pattern = Helpers.makePattern(path)
     for {
       (address, bucket) <- registry
-      if !(allButSelf && address == selfAddress) // if we should skip sender() node and current address == self address => skip
+      if !(allButSelf && address == selfAddress) || (onlyLocal && address != selfAddress)
       valueHolder <- bucket.content.filterKeys(k => pattern.matcher(k).matches).values
       ref <- valueHolder.ref
     } ref forward msg
