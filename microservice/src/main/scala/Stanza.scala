@@ -103,6 +103,9 @@ object IQ {
   def apply(id: String, iqtype: String, body: XmlElement): XmlElement = {
     XmlElement("iq", List(("id", id), ("type", iqtype)), "", List(body))
   }
+  def apply(id: String, iqtype: String): XmlElement = {
+    XmlElement("iq", List("id" -> id, "type" -> iqtype), "", List())
+  }
 }
 
 object Sasl {

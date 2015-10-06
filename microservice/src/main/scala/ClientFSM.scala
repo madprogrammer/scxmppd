@@ -192,7 +192,7 @@ class ClientFSM(
     // Event addressed to client
     case Event(Route(from, to, e @ XmlElement(name, _, _, _)), data: ClientState) =>
       name match {
-        case "message" =>
+        case "message" | "iq" =>
           channelContext.writeAndFlush(replaceFromTo(from, to, e))
         case _ =>
       }

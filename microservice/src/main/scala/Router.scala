@@ -17,12 +17,20 @@ class Router(serverContext: MicroserviceContext) extends Actor with ActorLogging
   val mediator = CustomDistributedPubSubExtension(context.system).mediator
   val logger = Logger.getLogger(getClass.getName)
   val pipeline = constructPipeline
+  val modules = loadModules
 
   def constructPipeline: immutable.ListMap[String, PipelineHandler] = {
     immutable.ListMap((for (
       name <- serverContext.routing.pipeline.toList;
       clazz = serverContext.dynamicAccess.createInstanceFor[PipelineHandler](name, immutable.Seq.empty).get
     ) yield (clazz.name -> clazz)): _*)
+  }
+
+  def loadModules: immutable.List[ActorRef] = {
+    for (
+      name <- serverContext.routing.modules.toList;
+      clazz = serverContext.dynamicAccess.getClassFor[Actor](name).get
+    ) yield (context.system.actorOf(Props(clazz)))
   }
 
   def receive = LoggingReceive {
