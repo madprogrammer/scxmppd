@@ -29,8 +29,8 @@ class Router(serverContext: MicroserviceContext) extends Actor with ActorLogging
   def loadModules: immutable.List[ActorRef] = {
     for (
       name <- serverContext.routing.modules.toList;
-      clazz = serverContext.dynamicAccess.getClassFor[Actor](name).get
-    ) yield (context.system.actorOf(Props(clazz)))
+      clazz = serverContext.dynamicAccess.getClassFor[ModuleActor](name).get
+    ) yield (context.system.actorOf(Props(clazz, serverContext)))
   }
 
   def receive = LoggingReceive {
