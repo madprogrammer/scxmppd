@@ -1,4 +1,4 @@
-package main.scala
+package com.scxmpp.pipeline
 
 import java.util.logging.Logger
 

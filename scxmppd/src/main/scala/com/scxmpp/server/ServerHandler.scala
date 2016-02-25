@@ -1,4 +1,4 @@
-package main.scala
+package com.scxmpp.server
 
 import java.util.logging.Logger
 import io.netty.handler.codec.DecoderException

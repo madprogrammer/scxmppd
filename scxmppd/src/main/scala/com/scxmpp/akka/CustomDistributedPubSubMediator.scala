@@ -2,7 +2,7 @@
  * Copyright (C) 2009-2014 Typesafe Inc. <http://www.typesafe.com>
  */
 
-package main.scala
+package com.scxmpp.akka
 
 import scala.collection.immutable
 import scala.concurrent.duration._

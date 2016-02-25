@@ -1,4 +1,4 @@
-package main.scala
+package com.scxmpp.util
 
 import com.ibm.icu.text.{StringPrep => IcuPrep}
 

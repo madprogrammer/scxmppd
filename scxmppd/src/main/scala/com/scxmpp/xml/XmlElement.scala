@@ -1,4 +1,4 @@
-package main.scala
+package com.scxmpp.xml
 
 case class XmlElement(name: String, attrs: List[(String, String)], var body: String, var children: List[XmlElement]) {
 

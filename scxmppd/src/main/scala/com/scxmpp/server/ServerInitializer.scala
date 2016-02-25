@@ -1,4 +1,4 @@
-package main.scala
+package com.scxmpp.server
 
 import io.netty.handler.ssl.SslContext
 import io.netty.channel.socket.SocketChannel

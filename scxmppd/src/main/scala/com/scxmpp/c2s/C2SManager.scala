@@ -1,4 +1,4 @@
-package main.scala
+package com.scxmpp.c2s
 
 import io.netty.channel.ChannelHandlerContext
 import akka.event.LoggingReceive

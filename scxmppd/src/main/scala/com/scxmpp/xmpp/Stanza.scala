@@ -1,4 +1,4 @@
-package main.scala
+package com.scxmpp.xmpp
 
 import shapeless._
 import syntax.std.tuple._

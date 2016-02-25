@@ -1,4 +1,4 @@
-package main.scala
+package com.scxmpp.server
 
 import java.io.File
 import java.net.InetSocketAddress

@@ -1,4 +1,4 @@
-package main.scala
+package com.scxmpp.pipeline
 
 trait PipelineHandler {
   val name: String

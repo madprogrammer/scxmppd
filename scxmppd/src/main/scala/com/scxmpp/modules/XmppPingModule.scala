@@ -1,4 +1,4 @@
-package main.scala
+package com.scxmpp.modules
 
 import akka.actor._
 

@@ -1,4 +1,4 @@
-package main.scala
+package com.scxmpp.routing
 
 import scala.util.{Success, Failure}
 import scala.concurrent.duration._

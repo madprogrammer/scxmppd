@@ -1,4 +1,4 @@
-package main.scala
+package com.scxmpp.cluster
 
 import akka.cluster.ClusterEvent._
 import akka.event.LoggingReceive

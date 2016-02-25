@@ -1,4 +1,4 @@
-package main.scala
+package com.scxmpp.c2s
 
 import java.util.logging.Logger
 import java.net.InetSocketAddress

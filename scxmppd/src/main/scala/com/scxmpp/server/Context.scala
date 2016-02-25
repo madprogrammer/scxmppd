@@ -1,4 +1,4 @@
-package main.scala
+package com.scxmpp.server
 
 import com.typesafe.config.{Config, ConfigFactory}
 import akka.actor.ReflectiveDynamicAccess
