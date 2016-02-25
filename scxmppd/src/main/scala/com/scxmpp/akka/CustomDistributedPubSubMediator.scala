@@ -4,6 +4,8 @@
 
 package com.scxmpp.akka
 
+import com.scxmpp.util.Helpers
+
 import scala.collection.immutable
 import scala.concurrent.duration._
 import scala.concurrent.forkjoin.ThreadLocalRandom
@@ -115,7 +117,7 @@ object CustomDistributedPubSubMediator {
   /**
    * INTERNAL API
    */
-  private[scala] object Internal {
+  private[akka] object Internal {
     case object Prune
 
     @SerialVersionUID(1L)

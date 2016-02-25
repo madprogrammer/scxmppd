@@ -1,6 +1,9 @@
 package com.scxmpp.server
 
 import java.util.logging.Logger
+import com.scxmpp.c2s.{ClientFSM, CreateClientFSM}
+import com.scxmpp.util.RandomUtils
+import com.scxmpp.xml.XmlElement
 import io.netty.handler.codec.DecoderException
 import io.netty.channel.{ChannelHandlerContext, SimpleChannelInboundHandler}
 import java.net.InetSocketAddress

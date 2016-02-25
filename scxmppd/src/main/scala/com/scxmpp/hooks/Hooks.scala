@@ -1,6 +1,8 @@
 package com.scxmpp.hooks
 
 import akka.actor.ActorRef
+import com.scxmpp.routing.Route
+import com.scxmpp.xmpp.JID
 
 object Hooks {
   case class SessionOpened(jid: JID, actor: ActorRef)

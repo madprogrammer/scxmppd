@@ -5,6 +5,7 @@ import javax.xml.stream._
 import java.io.StringWriter
 import java.nio.CharBuffer
 import java.nio.charset.Charset
+import com.scxmpp.xml.XmlElement
 import io.netty.buffer.ByteBufUtil
 import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.codec.MessageToMessageEncoder

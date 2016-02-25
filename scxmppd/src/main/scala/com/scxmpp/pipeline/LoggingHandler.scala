@@ -2,6 +2,8 @@ package com.scxmpp.pipeline
 
 import java.util.logging.Logger
 
+import com.scxmpp.routing.Route
+
 class LoggingHandler extends PipelineHandler {
   override val name = "loggingHandler"
   val logger = Logger.getLogger(name)

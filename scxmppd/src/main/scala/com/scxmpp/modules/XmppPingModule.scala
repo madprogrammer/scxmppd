@@ -1,6 +1,12 @@
 package com.scxmpp.modules
 
 import akka.actor._
+import com.scxmpp.akka.CustomDistributedPubSubMediator
+import com.scxmpp.hooks.{Hooks, Topics}
+import com.scxmpp.routing.Route
+import com.scxmpp.server.ServerContext
+import com.scxmpp.xml.XmlElement
+import com.scxmpp.xmpp.IQ
 
 class XmppPingModule(serverContext: ServerContext) extends ModuleActor(serverContext) {
   import CustomDistributedPubSubMediator.{Subscribe, SubscribeAck}

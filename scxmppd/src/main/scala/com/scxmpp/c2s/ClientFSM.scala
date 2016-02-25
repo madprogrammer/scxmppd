@@ -3,6 +3,14 @@ package com.scxmpp.c2s
 import java.util.logging.Logger
 import java.net.InetSocketAddress
 import javax.xml.bind.DatatypeConverter
+import com.scxmpp.akka.{CustomDistributedPubSubMediator, CustomDistributedPubSubExtension}
+import com.scxmpp.hooks.{Hooks, Topics}
+import com.scxmpp.netty.XmlFrameDecoder
+import com.scxmpp.routing.Route
+import com.scxmpp.server.{ServerHandler, ServerContext}
+import com.scxmpp.util.{RandomUtils, StringPrep}
+import com.scxmpp.xml.XmlElement
+import com.scxmpp.xmpp._
 import io.netty.channel.ChannelHandlerContext
 import akka.actor._
 

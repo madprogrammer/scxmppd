@@ -1,5 +1,7 @@
 package com.scxmpp.c2s
 
+import com.scxmpp.akka.{CustomDistributedPubSubExtension, CustomDistributedPubSubMediator}
+import com.scxmpp.server.ServerContext
 import io.netty.channel.ChannelHandlerContext
 import akka.event.LoggingReceive
 import akka.actor._

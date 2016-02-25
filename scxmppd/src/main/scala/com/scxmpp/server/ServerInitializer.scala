@@ -1,5 +1,6 @@
 package com.scxmpp.server
 
+import com.scxmpp.netty.{XmlElementEncoder, XmlFrameDecoder}
 import io.netty.handler.ssl.SslContext
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.{ChannelInitializer, ChannelPipeline}

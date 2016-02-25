@@ -1,5 +1,7 @@
 package com.scxmpp.xmpp
 
+import com.scxmpp.util.StringPrep
+import com.scxmpp.xml.XmlElement
 import shapeless._
 import syntax.std.tuple._
 import java.net.URLEncoder

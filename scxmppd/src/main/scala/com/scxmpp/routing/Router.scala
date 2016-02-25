@@ -1,13 +1,18 @@
 package com.scxmpp.routing
 
+import com.scxmpp.akka.{CustomDistributedPubSubExtension, CustomDistributedPubSubMediator}
+import com.scxmpp.hooks.{Hooks, Topics}
+import com.scxmpp.modules.ModuleActor
+import com.scxmpp.pipeline.PipelineHandler
+import com.scxmpp.server.ServerContext
+import com.scxmpp.xml.XmlElement
+import com.scxmpp.xmpp.JID
+
 import scala.util.{Success, Failure}
-import scala.concurrent.duration._
 import scala.collection.immutable
 import scala.collection.JavaConversions._
-import scala.concurrent.ExecutionContext.Implicits.global
 import akka.event.LoggingReceive
 import akka.actor._
-import akka.util.Timeout
 import java.util.logging.Logger
 
 case class Route(from: JID, to: JID, element: XmlElement)
