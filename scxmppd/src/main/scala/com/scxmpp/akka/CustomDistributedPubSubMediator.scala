@@ -160,6 +160,7 @@ object CustomDistributedPubSubMediator {
     def encName(s: String) = URLEncoder.encode(s, "utf-8")
 
     trait TopicLike extends Actor {
+      import context.dispatcher
 
       val emptyTimeToLive: FiniteDuration
       val pruneInterval: FiniteDuration = emptyTimeToLive / 2
