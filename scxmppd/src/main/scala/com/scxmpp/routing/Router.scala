@@ -28,21 +28,21 @@ class Router(serverContext: ServerContext) extends Actor with ActorLogging {
     immutable.ListMap((for (
       name <- serverContext.routing.pipeline.toList;
       clazz = serverContext.dynamicAccess.createInstanceFor[PipelineHandler](name, immutable.Seq.empty).get
-    ) yield (clazz.name -> clazz)): _*)
+    ) yield clazz.name -> clazz): _*)
   }
 
   def loadModules: immutable.List[ActorRef] = {
     for (
       name <- serverContext.routing.modules.toList;
       clazz = serverContext.dynamicAccess.getClassFor[ModuleActor](name).get
-    ) yield (context.system.actorOf(Props(clazz, serverContext)))
+    ) yield context.system.actorOf(Props(clazz, serverContext))
   }
 
   def receive = LoggingReceive {
     case route @ Route(from, to, element) =>
       pipeline.values.foldLeft[Option[Route]](Some(route)) { case (acc, handler) => handler.handle(route, acc) } match {
         case Some(result) =>
-          mediator ! SendToAll("/user/c2s/%s".format(to.toActorPath), result, false)
+          mediator ! SendToAll("/user/c2s/%s".format(to.toActorPath), result, allButSelf = false)
           mediator ! Publish(Topics.MessageRouted, Hooks.MessageRouted(result))
         case None =>
           logger.info("Message %s discarded after pipeline processing".format(route))

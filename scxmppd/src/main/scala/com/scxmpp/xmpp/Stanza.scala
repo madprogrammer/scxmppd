@@ -54,8 +54,8 @@ class JID private (val user: String, val server: String, val resource: String) e
     new JID(user, server, "")
   }
 
-  def toActorPath = URLEncoder.encode(user) + ":" + server + ":" +
-    (if (!resource.isEmpty) URLEncoder.encode(resource) else "*")
+  def toActorPath = URLEncoder.encode(user, "utf-8") + ":" + server + ":" +
+    (if (!resource.isEmpty) URLEncoder.encode(resource, "utf-8") else "*")
 
   override def toString =
     (if (!user.isEmpty) user + "@" else "") +

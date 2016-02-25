@@ -25,7 +25,7 @@ class XmppPingModule(serverContext: ServerContext) extends ModuleActor(serverCon
           case (Some(id), Some("get"))  =>
             msg.child("ping") match {
               case Some(ping) =>
-                if (ping("xmlns") == Some("urn:xmpp:ping"))
+                if (ping("xmlns").contains("urn:xmpp:ping"))
                   router ! Route(to, from, IQ(id, "result"))
               case _ =>
             }
