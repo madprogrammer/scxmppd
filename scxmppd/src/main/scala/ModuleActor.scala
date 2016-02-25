@@ -2,7 +2,7 @@ package main.scala
 
 import akka.actor._
 
-abstract class ModuleActor(serverContext: MicroserviceContext) extends Actor {
+abstract class ModuleActor(serverContext: ServerContext) extends Actor {
   import CustomDistributedPubSubMediator.{Subscribe, SubscribeAck}
 
   val mediator = CustomDistributedPubSubExtension(context.system).mediator

@@ -6,7 +6,7 @@ import akka.actor._
 
 case class CreateClientFSM(ctx: ChannelHandlerContext, name: String, state: ClientFSM.State, data: ClientFSM.Data)
 
-class C2SManager(serverContext: MicroserviceContext, actorSystem: ActorSystem) extends Actor with ActorLogging {
+class C2SManager(serverContext: ServerContext, actorSystem: ActorSystem) extends Actor with ActorLogging {
   import CustomDistributedPubSubMediator.Put
   val mediator = CustomDistributedPubSubExtension(context.system).mediator
 

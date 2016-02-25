@@ -13,7 +13,7 @@ import io.netty.handler.ssl.{SslContextBuilder, SslProvider}
 
 import akka.actor.{ActorSystem, Props}
 
-class Server(context: MicroserviceContext) {
+class Server(context: ServerContext) {
 
   private def doRun(group: EventLoopGroup, clazz: Class[_ <: ServerChannel]): Unit = {
     try {

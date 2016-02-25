@@ -7,7 +7,7 @@ import io.netty.handler.codec.string.StringEncoder
 import io.netty.util.CharsetUtil
 import akka.actor.ActorSystem
 
-class ServerInitializer(context: MicroserviceContext, sslContext: SslContext, actorSystem: ActorSystem) extends ChannelInitializer[SocketChannel] {
+class ServerInitializer(context: ServerContext, sslContext: SslContext, actorSystem: ActorSystem) extends ChannelInitializer[SocketChannel] {
   override def initChannel(s: SocketChannel): Unit = {
     val p: ChannelPipeline = s.pipeline
     p.addLast(sslContext.newHandler(s.alloc))

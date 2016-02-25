@@ -35,7 +35,7 @@ object ClientFSM {
 }
 
 class ClientFSM(
-  serverContext: MicroserviceContext,
+  serverContext: ServerContext,
   channelContext: ChannelHandlerContext,
   state: ClientFSM.State,
   data: ClientFSM.Data

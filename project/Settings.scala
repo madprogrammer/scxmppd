@@ -16,6 +16,6 @@ object Settings {
   private lazy val shared = build ++ Testing.settings
   private lazy val runnable = mainClass in Compile := Some("Main")
 
-  lazy val microservice = shared ++ runnable ++ Dependencies.microservice
+  lazy val scxmppd = shared ++ runnable ++ Dependencies.scxmppd
   lazy val root = build ++ runnable
 }

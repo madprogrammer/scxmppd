@@ -4,5 +4,5 @@
 - name: reload systemd
   command: /usr/bin/systemctl daemon-reload
 
-- name: enable microservice service
-  service: name=microservice enabled=yes
+- name: enable scxmppd service
+  service: name=scxmppd enabled=yes

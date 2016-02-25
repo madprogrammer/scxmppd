@@ -12,7 +12,7 @@ import java.util.logging.Logger
 
 case class Route(from: JID, to: JID, element: XmlElement)
 
-class Router(serverContext: MicroserviceContext) extends Actor with ActorLogging {
+class Router(serverContext: ServerContext) extends Actor with ActorLogging {
   import CustomDistributedPubSubMediator.{SendToAll, Publish}
   val mediator = CustomDistributedPubSubExtension(context.system).mediator
   val logger = Logger.getLogger(getClass.getName)

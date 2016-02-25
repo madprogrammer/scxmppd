@@ -1,0 +1,29 @@
+# This Playbook would deploy the new version of scxmppd
+
+- name: "Setup firewalld"
+  firewalld: port=8080/tcp permanent=true state=enabled
+  notify: reload firewalld
+
+- name: "Stop old version"
+  service: name=scxmppd state=stopped
+
+- name: "Copy new version of service"
+  template: src=scxmppd.service.j2 dest=/usr/lib/systemd/system/scxmppd.service
+  notify:
+    - reload systemd
+    - enable scxmppd service
+
+- name: "Copy new version of scxmppd"
+  unarchive: src=scxmppd.zip dest=/opt/
+
+- name: "Create symlink to scxmppd executable"
+  file: src=/opt/scxmppd/bin/scxmppd dest=/usr/bin/scxmppd state=link
+
+- name: "Start new version"
+  service: name=scxmppd state=started
+
+# Pause for 5 seconds to launch the API.
+- pause: seconds=5
+
+- name: "Healthcheck the new version"
+  action: uri url=http://{{ inventory_hostname }}:8080/healthcheck

@@ -1,0 +1,9 @@
+[Unit]
+Description=scxmppd service
+
+[Service]
+Restart=always
+ExecStart=/bin/bash -c "export ENV={{ env }} && /usr/bin/scxmppd"
+
+[Install]
+WantedBy=multi-user.target

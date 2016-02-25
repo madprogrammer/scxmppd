@@ -17,7 +17,7 @@ abstract class Context(val config: Config) {
   val dynamicAccess = new ReflectiveDynamicAccess(getClass.getClassLoader)
 }
 
-class MicroserviceContext extends Context {
+class ServerContext extends Context {
   val endpoint = new EndpointSettings(config)
   val xmpp = new XmppSettigns(config)
   val ssl = new SslSettings(config)

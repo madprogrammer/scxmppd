@@ -1,8 +1,8 @@
-# This Playbook for API endpoint
+# This Playbook for scxmppd
 
 - hosts: servers
   max_fail_percentage: 1
   serial: 1
   roles:
     - common
-    - microservice
+    - scxmppd

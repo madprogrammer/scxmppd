@@ -2,7 +2,7 @@ package main.scala
 
 import akka.actor._
 
-class XmppPingModule(serverContext: MicroserviceContext) extends ModuleActor(serverContext) {
+class XmppPingModule(serverContext: ServerContext) extends ModuleActor(serverContext) {
   import CustomDistributedPubSubMediator.{Subscribe, SubscribeAck}
 
   mediator ! Subscribe(Topics.MessageRouted, self)

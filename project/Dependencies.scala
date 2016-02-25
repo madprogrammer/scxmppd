@@ -22,7 +22,7 @@ object Dependencies {
   private val aalto  = "com.fasterxml" % "aalto-xml" % "0.9.11"
   private val shapeless = "com.chuusai" %% "shapeless" % "2.2.5"
 
-  val microservice = dependencies(
+  val scxmppd = dependencies(
     Netty.all, Netty.epoll, Netty.tcnative,
     Akka.actor, Akka.cluster, Akka.contrib,
     config, icu4j, aalto, shapeless)
