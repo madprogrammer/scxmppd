@@ -1,49 +1,34 @@
 package com.scxmpp.server
 
-import java.io.File
 import java.net.InetSocketAddress
 
-import com.scxmpp.c2s.C2SManager
-import com.scxmpp.cluster.ClusterListener
-import com.scxmpp.routing.Router
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.buffer.PooledByteBufAllocator
 import io.netty.channel.epoll.{Epoll, EpollEventLoopGroup, EpollServerSocketChannel}
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.nio.NioServerSocketChannel
-import io.netty.channel.{ChannelOption, EventLoopGroup, ServerChannel}
-import io.netty.handler.ssl.{SslContextBuilder, SslProvider}
+import io.netty.channel.{Channel, ChannelOption, EventLoopGroup, ServerChannel}
 
-import akka.actor.{ActorSystem, Props}
+import scala.collection.JavaConversions._
+import scala.collection.mutable.ArrayBuffer
 
 class Server(context: ServerContext) {
 
+  var channels = ArrayBuffer.empty[Channel]
+
+  val bootstrap = new ServerBootstrap()
+  bootstrap.childOption(ChannelOption.ALLOCATOR, new PooledByteBufAllocator(true))
+
   private def doRun(group: EventLoopGroup, clazz: Class[_ <: ServerChannel]): Unit = {
     try {
-      val sslContextBuilder = SslContextBuilder.forServer(
-        new File(context.ssl.certfile), new File(context.ssl.keyfile))
-      context.ssl.provider match {
-        case "jdk" =>
-          sslContextBuilder.sslProvider(SslProvider.JDK)
-        case "openssl" =>
-          sslContextBuilder.sslProvider(SslProvider.OPENSSL)
-        case _ =>
-          sslContextBuilder.sslProvider(SslProvider.JDK)
+      for(server <- context.servers) {
+        val inet: InetSocketAddress = new InetSocketAddress(
+          server.getString("endpoint.address"), server.getInt("endpoint.port"))
+        channels.add(bootstrap.bind(inet).sync.channel)
       }
-      val sslContext = sslContextBuilder.build
-
-      val actorSystem = ActorSystem("system")
-      actorSystem.actorOf(Props[ClusterListener], "clusterListener")
-      actorSystem.actorOf(Props(classOf[Router], context), "router")
-      actorSystem.actorOf(Props(classOf[C2SManager], context, actorSystem), "c2s")
-
-      val inet: InetSocketAddress = new InetSocketAddress(
-        context.endpoint.address, context.endpoint.port)
-      val bootstrap = new ServerBootstrap()
-      bootstrap.group(group).channel(clazz).childHandler(new ServerInitializer(context, sslContext, actorSystem))
-      bootstrap.childOption(ChannelOption.ALLOCATOR, new PooledByteBufAllocator(true))
-      bootstrap.bind(inet).sync.channel.closeFuture.sync
     } finally {
+      for (channel <- channels)
+        channel.closeFuture.sync
       group.shutdownGracefully.sync
     }
   }

@@ -7,10 +7,11 @@ import com.scxmpp.akka.{CustomDistributedPubSubMediator, CustomDistributedPubSub
 import com.scxmpp.hooks.{Hooks, Topics}
 import com.scxmpp.netty.XmlFrameDecoder
 import com.scxmpp.routing.Route
-import com.scxmpp.server.{ServerHandler, ServerContext}
+import com.scxmpp.server.XmppServerHandler
 import com.scxmpp.util.{RandomUtils, StringPrep}
 import com.scxmpp.xml.XmlElement
 import com.scxmpp.xmpp._
+import com.typesafe.config.Config
 import io.netty.channel.ChannelHandlerContext
 import akka.actor._
 
@@ -43,7 +44,7 @@ object ClientFSM {
 }
 
 class ClientFSM(
-  serverContext: ServerContext,
+  config: Config,
   channelContext: ChannelHandlerContext,
   state: ClientFSM.State,
   data: ClientFSM.Data
@@ -88,7 +89,7 @@ class ClientFSM(
       e("xmlns") match {
         case Some(XmppNS.Stream) =>
           val server = StringPrep.namePrep(e("to") getOrElse "")
-          if (!(serverContext.xmpp.hosts contains server))
+          if (!(config.getStringList("xmpp.hosts") contains server))
             streamHeaderError(data.streamId, StreamError.HostUnknown)
           else
             e("version") match {
@@ -228,9 +229,9 @@ class ClientFSM(
   onTransition {
     case WaitForFeatureRequest -> WaitForStream =>
       channelContext.pipeline.get("xmlFrameDecoder").asInstanceOf[XmlFrameDecoder].reset()
-      channelContext.handler.asInstanceOf[ServerHandler].reset()
+      channelContext.handler.asInstanceOf[XmppServerHandler].reset()
     case WaitForSession -> SessionEstablished =>
-      channelContext.handler.asInstanceOf[ServerHandler].replaceFSM(
+      channelContext.handler.asInstanceOf[XmppServerHandler].replaceFSM(
         channelContext,
         SessionEstablished,
         stateData.asInstanceOf[ClientState])

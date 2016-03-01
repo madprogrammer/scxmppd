@@ -17,7 +17,7 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class ServerHandler(context: ServerContext, actorSystem: ActorSystem) extends SimpleChannelInboundHandler[XMLEvent] {
+class XmppServerHandler(actorSystem: ActorSystem) extends SimpleChannelInboundHandler[XMLEvent] {
 
   val manager = actorSystem.actorSelection("/user/c2s")
   val logger = Logger.getLogger(getClass.getName)

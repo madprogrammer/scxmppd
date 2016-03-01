@@ -8,7 +8,9 @@ import com.scxmpp.server.ServerContext
 import com.scxmpp.xml.XmlElement
 import com.scxmpp.xmpp.IQ
 
-class XmppPingModule(serverContext: ServerContext) extends ModuleActor(serverContext) {
+import com.typesafe.config.Config
+
+class XmppPingModule(serverContext: ServerContext, config: Config) extends ModuleActor(serverContext, config) {
   import CustomDistributedPubSubMediator.{Subscribe, SubscribeAck}
 
   mediator ! Subscribe(Topics.MessageRouted, self)
@@ -20,7 +22,7 @@ class XmppPingModule(serverContext: ServerContext) extends ModuleActor(serverCon
 
   def ready: Receive = {
     case Hooks.MessageRouted(Route(from, to, msg @ XmlElement("iq", _, _, _))) =>
-      if (serverContext.xmpp.hosts contains to.toString) {
+      if (config.getStringList("xmpp.hosts") contains to.toString) {
         (msg("id"), msg("type")) match {
           case (Some(id), Some("get"))  =>
             msg.child("ping") match {

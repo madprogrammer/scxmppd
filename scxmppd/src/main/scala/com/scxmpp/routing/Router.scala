@@ -4,9 +4,11 @@ import com.scxmpp.akka.{CustomDistributedPubSubExtension, CustomDistributedPubSu
 import com.scxmpp.hooks.{Hooks, Topics}
 import com.scxmpp.modules.ModuleActor
 import com.scxmpp.pipeline.PipelineHandler
-import com.scxmpp.server.ServerContext
 import com.scxmpp.xml.XmlElement
 import com.scxmpp.xmpp.JID
+import com.scxmpp.server.ServerContext
+
+import com.typesafe.config.Config
 
 import scala.util.{Success, Failure}
 import scala.collection.immutable
@@ -17,7 +19,7 @@ import java.util.logging.Logger
 
 case class Route(from: JID, to: JID, element: XmlElement)
 
-class Router(serverContext: ServerContext) extends Actor with ActorLogging {
+class Router(serverContext: ServerContext, config: Config) extends Actor with ActorLogging {
   import CustomDistributedPubSubMediator.{SendToAll, Publish}
   val mediator = CustomDistributedPubSubExtension(context.system).mediator
   val logger = Logger.getLogger(getClass.getName)
@@ -26,16 +28,16 @@ class Router(serverContext: ServerContext) extends Actor with ActorLogging {
 
   def constructPipeline: immutable.ListMap[String, PipelineHandler] = {
     immutable.ListMap((for (
-      name <- serverContext.routing.pipeline.toList;
+      name <- config.getStringList("routing.pipeline");
       clazz = serverContext.dynamicAccess.createInstanceFor[PipelineHandler](name, immutable.Seq.empty).get
     ) yield clazz.name -> clazz): _*)
   }
 
   def loadModules: immutable.List[ActorRef] = {
     for (
-      name <- serverContext.routing.modules.toList;
+      name <- config.getStringList("routing.modules").toList;
       clazz = serverContext.dynamicAccess.getClassFor[ModuleActor](name).get
-    ) yield context.system.actorOf(Props(clazz, serverContext))
+    ) yield context.system.actorOf(Props(clazz, serverContext, config))
   }
 
   def receive = LoggingReceive {
