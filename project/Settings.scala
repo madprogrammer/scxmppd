@@ -14,7 +14,7 @@ object Settings {
   )
 
   private lazy val shared = build ++ Testing.settings
-  private lazy val runnable = mainClass in Compile := Some("Main")
+  private lazy val runnable = mainClass in Compile := Some("com.scxmpp.Main")
 
   lazy val scxmppd = shared ++ runnable ++ Dependencies.scxmppd
   lazy val root = build ++ runnable
