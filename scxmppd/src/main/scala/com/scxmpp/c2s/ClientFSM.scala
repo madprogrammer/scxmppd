@@ -7,7 +7,6 @@ import com.scxmpp.akka.{CustomDistributedPubSubMediator, CustomDistributedPubSub
 import com.scxmpp.hooks.{Hooks, Topics}
 import com.scxmpp.netty.XmlFrameDecoder
 import com.scxmpp.routing.Route
-import com.scxmpp.server.XmppServerHandler
 import com.scxmpp.util.{RandomUtils, StringPrep}
 import com.scxmpp.xml.XmlElement
 import com.scxmpp.xmpp._

@@ -1,18 +1,20 @@
-package com.scxmpp.server
+package com.scxmpp.xmpp
 
-import java.util.logging.Logger
-import com.scxmpp.c2s.{ClientFSM, CreateClientFSM}
-import com.scxmpp.util.RandomUtils
-import com.scxmpp.xml.XmlElement
-import io.netty.handler.codec.DecoderException
-import io.netty.channel.{ChannelHandlerContext, SimpleChannelInboundHandler}
 import java.net.InetSocketAddress
+import java.util.logging.Logger
 import javax.xml.stream.events._
-import scala.collection.mutable
-import scala.collection.JavaConversions._
+
 import akka.actor._
 import akka.pattern.ask
 import akka.util.Timeout
+import com.scxmpp.c2s.{ClientFSM, CreateClientFSM}
+import com.scxmpp.util.RandomUtils
+import com.scxmpp.xml.XmlElement
+import io.netty.channel.{ChannelHandlerContext, SimpleChannelInboundHandler}
+import io.netty.handler.codec.DecoderException
+
+import scala.collection.JavaConversions._
+import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps

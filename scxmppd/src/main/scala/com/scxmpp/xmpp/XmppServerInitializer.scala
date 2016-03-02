@@ -1,16 +1,16 @@
-package com.scxmpp.server
+package com.scxmpp.xmpp
 
+import akka.actor.{ActorSystem, Props}
 import com.scxmpp.c2s.C2SManager
 import com.scxmpp.cluster.ClusterListener
-import com.scxmpp.routing.Router
 import com.scxmpp.netty.{XmlElementEncoder, XmlFrameDecoder}
+import com.scxmpp.routing.Router
+import com.scxmpp.server.{ServerContext, SslContextHelper}
 import com.typesafe.config.Config
-import io.netty.handler.ssl.SslContext
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.{ChannelInitializer, ChannelPipeline}
 import io.netty.handler.codec.string.StringEncoder
 import io.netty.util.CharsetUtil
-import akka.actor.{ActorSystem, Props}
 
 class XmppServerInitializer(context: ServerContext, config: Config) extends ChannelInitializer[SocketChannel] {
   val actorSystem = ActorSystem("system")
