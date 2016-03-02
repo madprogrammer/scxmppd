@@ -17,7 +17,3 @@ abstract class Context(val config: Config) {
   val dynamicAccess = new ReflectiveDynamicAccess(getClass.getClassLoader)
 }
 
-class ServerContext extends Context {
-  val servers = config.getConfigList("servers");
-}
-
