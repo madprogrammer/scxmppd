@@ -4,7 +4,7 @@ import sbt.Keys._
 object Dependencies {
 
   object Netty {
-    private val version = "4.0.28.Final"
+    private val version = "4.0.34.Final"
     val all = "io.netty" % "netty-all" % version
     val epoll = "io.netty" % "netty-transport-native-epoll" % version
     val tcnative = "io.netty" % "netty-tcnative" % "1.1.33.Fork7" classifier "linux-x86_64"

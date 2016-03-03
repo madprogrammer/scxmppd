@@ -1,8 +1,9 @@
 package com.scxmpp.http
 
-import io.netty.handler.codec.http.HttpRequest
+import com.typesafe.config.Config
+import io.netty.channel.ChannelHandlerContext
+import io.netty.handler.codec.http.FullHttpRequest
 
-trait UriBasedHandler {
-  def process (request: HttpRequest, buf: StringBuilder)
-  def getContentType: String = "text/plain; charset=UTF-8"
+abstract class UriBasedHandler(config: Config) {
+  def process (ctx: ChannelHandlerContext, request: FullHttpRequest)
 }
