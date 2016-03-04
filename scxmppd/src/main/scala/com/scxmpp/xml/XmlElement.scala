@@ -6,6 +6,8 @@ case class XmlElement(name: String, attrs: List[(String, String)], var body: Str
 
   def child(name: String) = XmlElement.child(name, children)
 
+  def firstChild = XmlElement.firstChild(children)
+
   def setAttr(name: String, value: String) =
     XmlElement(this.name, (attrs.toMap + (name -> value)).toList, body, children)
 
@@ -26,6 +28,10 @@ object XmlElement {
     for (child <- children if child.name == name)
       return Some(child)
     None
+  }
+
+  def firstChild(children: List[XmlElement]): Option[XmlElement] = {
+    children.headOption
   }
 
 }

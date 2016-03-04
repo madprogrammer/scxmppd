@@ -10,7 +10,7 @@ import com.typesafe.config.Config
 
 case class CreateClientFSM(ctx: ChannelHandlerContext, name: String, state: ClientFSM.State, data: ClientFSM.Data)
 
-class C2SManager(config: Config, actorSystem: ActorSystem) extends Actor with ActorLogging {
+class C2SManager(config: Config) extends Actor with ActorLogging {
   import CustomDistributedPubSubMediator.Put
   val mediator = CustomDistributedPubSubExtension(context.system).mediator
 

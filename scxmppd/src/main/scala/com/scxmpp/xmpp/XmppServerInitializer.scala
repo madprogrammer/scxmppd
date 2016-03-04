@@ -3,6 +3,7 @@ package com.scxmpp.xmpp
 import akka.actor.{ActorSystem, Props}
 import com.scxmpp.c2s.C2SManager
 import com.scxmpp.cluster.ClusterListener
+import com.scxmpp.modules.{HandlerManager, ModuleManager}
 import com.scxmpp.netty.{XmlElementEncoder, XmlFrameDecoder}
 import com.scxmpp.routing.Router
 import com.scxmpp.server.{ServerContext, SslContextHelper}
@@ -16,7 +17,9 @@ class XmppServerInitializer(context: ServerContext, config: Config) extends Chan
   val actorSystem = ActorSystem("system")
   actorSystem.actorOf(Props[ClusterListener], "clusterListener")
   actorSystem.actorOf(Props(classOf[Router], context, config), "router")
-  actorSystem.actorOf(Props(classOf[C2SManager], config, actorSystem), "c2s")
+  actorSystem.actorOf(Props(classOf[C2SManager], config), "c2s")
+  actorSystem.actorOf(Props(classOf[ModuleManager], context, config), "module")
+  actorSystem.actorOf(Props(classOf[HandlerManager], context, config), "handler")
 
   var sslContext = SslContextHelper.getContext(config)
 

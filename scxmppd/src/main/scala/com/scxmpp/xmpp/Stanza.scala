@@ -143,8 +143,8 @@ object StanzaError {
   }
 
   def apply(element: XmlElement, error: (String, String, String)): XmlElement = {
-    val from = element("from")
     val to = element("to")
+    val from = element("from") orElse to
     val attrs = element.attrs.map {
       case ("from", _) => ("from", to.get)
       case ("to", _) => ("to", from.get)
