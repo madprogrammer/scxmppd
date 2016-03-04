@@ -1,6 +1,7 @@
 package com.scxmpp.modules
 
 import akka.event.LoggingReceive
+import com.scxmpp.util.Helpers
 import com.scxmpp.xmpp.StanzaError
 
 import scala.util.{Failure, Success}
@@ -47,7 +48,8 @@ class IqDispatcher(serverContext: ServerContext, config: Config)
                 implicit val ec = context.dispatcher
                 child("xmlns") match {
                   case Some(xmlns) =>
-                    val actorSel = context.actorSelection(s"/user/handler/iq.$xmlns")
+                    val encodedNamespace = Helpers.urlEncode(xmlns)
+                    val actorSel = context.actorSelection(s"/user/handler/iq.$encodedNamespace")
                     actorSel ? Route(from, to, msg) andThen {
                       case Success(result: Route) =>
                         router ! result

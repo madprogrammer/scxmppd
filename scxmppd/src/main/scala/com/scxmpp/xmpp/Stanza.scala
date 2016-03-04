@@ -1,10 +1,9 @@
 package com.scxmpp.xmpp
 
-import com.scxmpp.util.StringPrep
+import com.scxmpp.util.{Helpers, StringPrep}
 import com.scxmpp.xml.XmlElement
 import shapeless._
 import syntax.std.tuple._
-import java.net.URLEncoder
 import java.io.Serializable
 
 object nullToEmptyString extends Poly1 {
@@ -54,8 +53,8 @@ class JID private (val user: String, val server: String, val resource: String) e
     new JID(user, server, "")
   }
 
-  def toActorPath = URLEncoder.encode(user, "utf-8") + ":" + server + ":" +
-    (if (!resource.isEmpty) URLEncoder.encode(resource, "utf-8") else "*")
+  def toActorPath = Helpers.urlEncode(user) + ":" + server + ":" +
+    (if (!resource.isEmpty) Helpers.urlEncode(resource) else "*")
 
   override def toString =
     (if (!user.isEmpty) user + "@" else "") +
