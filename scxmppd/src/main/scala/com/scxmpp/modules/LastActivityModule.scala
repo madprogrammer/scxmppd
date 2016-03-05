@@ -1,7 +1,7 @@
 package com.scxmpp.modules
 
-import akka.actor.ActorNotFound
 import akka.util.Timeout
+import com.scxmpp.akka.CustomDistributedPubSubMediator.Publish
 
 import scala.concurrent.duration._
 import scala.util.{Success, Failure}
@@ -44,6 +44,8 @@ class LastActivityIqHandler(serverContext: ServerContext, config: Config)
 
   def receive = {
     case SubscribeAck(Subscribe(Topics.SessionClosed, None, `self`)) =>
+      mediator ! Publish(Topics.DiscoveryFeature, Hooks.DiscoveryFeature(LastActivityModuleDefinitions.NS_LAST),
+        sendOneMessageToEachGroup = false, onlyLocal = true)
       context become ready
   }
 

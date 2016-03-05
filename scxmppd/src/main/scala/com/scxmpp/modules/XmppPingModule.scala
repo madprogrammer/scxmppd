@@ -1,5 +1,7 @@
 package com.scxmpp.modules
 
+import com.scxmpp.akka.CustomDistributedPubSubMediator.Publish
+import com.scxmpp.hooks.{Hooks, Topics}
 import com.scxmpp.modules.support.ModuleActor
 import com.scxmpp.routing.Route
 import com.scxmpp.server.ServerContext
@@ -25,6 +27,9 @@ class XmppPingModule(serverContext: ServerContext, config: Config)
 
 class XmppPingIqHandler(serverContext: ServerContext, config: Config)
   extends ModuleActor(serverContext, config) {
+
+  mediator ! Publish(Topics.DiscoveryFeature, Hooks.DiscoveryFeature(LastActivityModuleDefinitions.NS_LAST),
+    sendOneMessageToEachGroup = false, onlyLocal = true)
 
   def receive = {
     case Route(from, to, msg @ XmlElement("iq", _, _, _)) =>
