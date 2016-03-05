@@ -55,7 +55,7 @@ class LastActivityIqHandler(serverContext: ServerContext, config: Config)
             case Some(query) =>
               if (query("xmlns").contains(LastActivityModuleDefinitions.NS_LAST)) {
                 implicit val ec = context.dispatcher
-                implicit val timeout = Timeout(5 seconds)
+                implicit val timeout = Timeout(5.seconds)
                 val originalSender = sender
                 context.actorSelection("/user/c2s/%s".format(to.toActorPath)).resolveOne onComplete {
                   case Success(actorRef) =>

@@ -34,7 +34,7 @@ class Router(serverContext: ServerContext, config: Config) extends Actor with Ac
       modules.append(module)
       sender ! SubscribeAck
     case route@Route(from, to, element) =>
-      implicit val timeout = new Timeout(60 seconds)
+      implicit val timeout = new Timeout(60.seconds)
       implicit val ec = context.dispatcher
       var result: Option[Route] = Some(route)
       val futures = modules.map(module => {

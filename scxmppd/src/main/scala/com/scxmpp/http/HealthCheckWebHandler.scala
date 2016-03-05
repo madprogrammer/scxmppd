@@ -10,7 +10,7 @@ class HealthCheckWebHandler(config: Config) extends UriBasedHandler(config) {
   def process(ctx: ChannelHandlerContext, request: FullHttpRequest) {
     val response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK,
       Unpooled.copiedBuffer("OK\r\n", CharsetUtil.UTF_8))
-    response.headers().set(HttpHeaders.Names.CONTENT_TYPE, "text/plain; charset=UTF-8")
+    response.headers().set(HttpHeaderNames.CONTENT_TYPE, "text/plain; charset=UTF-8")
     ctx.writeAndFlush(response).addListener(ChannelFutureListener.CLOSE)
   }
 }

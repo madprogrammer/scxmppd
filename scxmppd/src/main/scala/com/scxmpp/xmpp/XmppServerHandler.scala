@@ -17,7 +17,6 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import scala.language.postfixOps
 
 class XmppServerHandler(actorSystem: ActorSystem) extends SimpleChannelInboundHandler[XMLEvent] {
 
@@ -50,7 +49,7 @@ class XmppServerHandler(actorSystem: ActorSystem) extends SimpleChannelInboundHa
   }
 
   def createFSM(ctx: ChannelHandlerContext): ActorRef = {
-    implicit val timeout = Timeout(60 seconds)
+    implicit val timeout = Timeout(60.seconds)
     val (ip, port) = ctx.channel.remoteAddress match { case s: InetSocketAddress => (s.getAddress.getHostAddress, s.getPort) }
     val name = ip + ":" + port + "@" + RandomUtils.randomDigits(5)
     val future = manager ? CreateClientFSM(ctx, name,
@@ -61,7 +60,7 @@ class XmppServerHandler(actorSystem: ActorSystem) extends SimpleChannelInboundHa
 
   // Called from ClientFSM to replace it while keeping state
   def replaceFSM(ctx: ChannelHandlerContext, state: ClientFSM.State, data: ClientFSM.ClientState) {
-    implicit val timeout = Timeout(60 seconds)
+    implicit val timeout = Timeout(60.seconds)
     data.jid match {
       case None =>
         throw new IllegalArgumentException("JID was not initialized")

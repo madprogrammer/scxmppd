@@ -11,7 +11,6 @@ import com.typesafe.config.Config
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import scala.language.postfixOps
 
 abstract class ModuleActor(serverContext: ServerContext, config: Config) extends Actor {
   lazy val mediator = CustomDistributedPubSubExtension(context.system).mediator
@@ -21,7 +20,7 @@ abstract class ModuleActor(serverContext: ServerContext, config: Config) extends
 
   // TODO: Limit allowed types to subclases of Actor
   def registerHandler(name: String, clazz: Class[_]): ActorRef = {
-    implicit val timeout = Timeout(60 seconds)
+    implicit val timeout = Timeout(60.seconds)
     val future = handlerManager ? RegisterHandler(name, clazz)
     Await.result(future, timeout.duration).asInstanceOf[ActorRef]
   }

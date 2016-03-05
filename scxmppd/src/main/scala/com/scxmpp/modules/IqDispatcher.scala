@@ -6,9 +6,7 @@ import com.scxmpp.util.Helpers
 import com.scxmpp.xmpp.StanzaError
 
 import scala.util.{Failure, Success}
-
 import scala.concurrent.duration._
-import scala.language.postfixOps
 
 import akka.pattern.ask
 import akka.util.Timeout
@@ -41,7 +39,7 @@ class IqDispatcher(serverContext: ServerContext, config: Config)
           case (Some(_), Some("get")) =>
             msg.firstChild match {
               case Some(child) =>
-                implicit val timeout = Timeout(5 seconds)
+                implicit val timeout = Timeout(5.seconds)
                 implicit val ec = context.dispatcher
                 child("xmlns") match {
                   case Some(xmlns) =>

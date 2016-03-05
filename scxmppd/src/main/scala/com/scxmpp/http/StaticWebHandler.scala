@@ -24,17 +24,17 @@ class StaticWebHandler(config: Config) extends UriBasedHandler(config) {
   private val logger = Logger.getLogger(getClass.getName)
 
   def process(ctx: ChannelHandlerContext, request: FullHttpRequest): Unit = {
-    if (!request.getDecoderResult.isSuccess) {
+    if (!request.decoderResult.isSuccess) {
       HttpHelpers.sendError(ctx, HttpResponseStatus.BAD_REQUEST)
       return
     }
 
-    if (request.getMethod != HttpMethod.GET) {
+    if (request.method != HttpMethod.GET) {
       HttpHelpers.sendError(ctx, HttpResponseStatus.METHOD_NOT_ALLOWED)
       return
     }
 
-    val path = sanitizeUri(request.getUri)
+    val path = sanitizeUri(request.uri)
     if (path.isEmpty) {
       HttpHelpers.sendError(ctx, HttpResponseStatus.FORBIDDEN)
       return
@@ -64,12 +64,12 @@ class StaticWebHandler(config: Config) extends UriBasedHandler(config) {
 
     val response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK)
 
-    HttpHeaders.setContentLength(response, raf.get.length)
+    HttpUtil.setContentLength(response, raf.get.length)
     setContentTypeHeader(response, file)
     setDateAndCacheHeaders(response, file)
 
-    if (HttpHeaders.isKeepAlive(request)) {
-      response.headers().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.KEEP_ALIVE)
+    if (HttpUtil.isKeepAlive(request)) {
+      response.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.KEEP_ALIVE)
     }
 
     // Write the initial line and the headers
@@ -101,7 +101,7 @@ class StaticWebHandler(config: Config) extends UriBasedHandler(config) {
     })
 
     // Decide whether to close the connection or not.
-    if (!HttpHeaders.isKeepAlive(request)) {
+    if (!HttpUtil.isKeepAlive(request)) {
       lastContentFuture.addListener(ChannelFutureListener.CLOSE)
     }
   }
@@ -129,7 +129,7 @@ class StaticWebHandler(config: Config) extends UriBasedHandler(config) {
 
   def setContentTypeHeader(response: HttpResponse, file: File) {
     val mimeTypesMap = new MimetypesFileTypeMap()
-    response.headers().set(HttpHeaders.Names.CONTENT_TYPE, mimeTypesMap.getContentType(file.getPath))
+    response.headers().set(HttpHeaderNames.CONTENT_TYPE, mimeTypesMap.getContentType(file.getPath))
   }
 
   def setDateAndCacheHeaders(response: HttpResponse, fileToCache: File) {
@@ -137,13 +137,13 @@ class StaticWebHandler(config: Config) extends UriBasedHandler(config) {
     dateFormatter.setTimeZone(TimeZone.getTimeZone(HTTP_DATE_GMT_TIMEZONE))
 
     val time = new GregorianCalendar()
-    response.headers().set(HttpHeaders.Names.DATE, dateFormatter.format(time.getTime))
+    response.headers().set(HttpHeaderNames.DATE, dateFormatter.format(time.getTime))
 
     // Add cache headers
     time.add(Calendar.SECOND, HTTP_CACHE_SECONDS)
-    response.headers().set(HttpHeaders.Names.EXPIRES, dateFormatter.format(time.getTime))
-    response.headers().set(HttpHeaders.Names.CACHE_CONTROL, "private, max-age=" + HTTP_CACHE_SECONDS)
+    response.headers().set(HttpHeaderNames.EXPIRES, dateFormatter.format(time.getTime))
+    response.headers().set(HttpHeaderNames.CACHE_CONTROL, "private, max-age=" + HTTP_CACHE_SECONDS)
     response.headers().set(
-      HttpHeaders.Names.LAST_MODIFIED, dateFormatter.format(new Date(fileToCache.lastModified())))
+      HttpHeaderNames.LAST_MODIFIED, dateFormatter.format(new Date(fileToCache.lastModified())))
   }
 }

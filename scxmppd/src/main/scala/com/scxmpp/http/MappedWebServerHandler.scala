@@ -29,12 +29,12 @@ class MappedWebServerHandler(context: ServerContext, config: Config) extends Sim
   }
 
   override def channelRead0(ctx: ChannelHandlerContext, request: FullHttpRequest) {
-    val path = new QueryStringDecoder(request.getUri).path()
+    val path = new QueryStringDecoder(request.uri).path()
     val key = path.substring(0, path.indexOf("/", 1) match { case -1 => path.length; case x => x })
     val handler = handlers.get(key)
 
     // Pass the untouched request to the handler for maximum flexibility
-    if (handler isDefined)
+    if (handler.isDefined)
       handler.get.process(ctx, request)
     else
       HttpHelpers.sendError(ctx, HttpResponseStatus.NOT_FOUND)

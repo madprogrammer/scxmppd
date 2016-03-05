@@ -25,7 +25,7 @@ class XmppServerInitializer(context: ServerContext, config: Config) extends Chan
 
   override def initChannel(s: SocketChannel): Unit = {
     val p: ChannelPipeline = s.pipeline
-    if (sslContext isDefined)
+    if (sslContext.isDefined)
       p.addLast(sslContext.get.newHandler(s.alloc))
     p.addLast("xmlFrameDecoder", new XmlFrameDecoder())
     p.addLast("xmlEncoder", new XmlElementEncoder())

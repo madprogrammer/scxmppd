@@ -12,7 +12,7 @@ class MappedWebServerInitializer(context: ServerContext, config: Config) extends
 
   override def initChannel(s: SocketChannel): Unit = {
     val p = s.pipeline()
-    if (sslContext isDefined)
+    if (sslContext.isDefined)
       p.addLast(sslContext.get.newHandler(s.alloc))
     p.addLast("codec", new HttpServerCodec())
     p.addLast("aggregator", new HttpObjectAggregator(65536))
