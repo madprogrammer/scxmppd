@@ -1,6 +1,7 @@
 package com.scxmpp.modules
 
-import com.scxmpp.akka.CustomDistributedPubSubMediator.Publish
+import akka.event.LoggingReceive
+import com.scxmpp.akka.CustomDistributedPubSubMediator.{Subscribe, SubscribeAck, Publish}
 import com.scxmpp.hooks.{Hooks, Topics}
 import com.scxmpp.modules.support.ModuleActor
 import com.scxmpp.routing.Route
@@ -28,10 +29,17 @@ class XmppPingModule(serverContext: ServerContext, config: Config)
 class XmppPingIqHandler(serverContext: ServerContext, config: Config)
   extends ModuleActor(serverContext, config) {
 
-  mediator ! Publish(Topics.DiscoveryFeature, Hooks.DiscoveryFeature(LastActivityModuleDefinitions.NS_LAST),
-    sendOneMessageToEachGroup = false, onlyLocal = true)
+  mediator ! Subscribe(Topics.ModulesLoaded, self)
 
   def receive = {
+    case SubscribeAck(Subscribe(Topics.ModulesLoaded, None, `self`)) =>
+      mediator ! Publish(Topics.DiscoveryFeature, Hooks.DiscoveryFeature(XmppPingModuleDefinitions.NS_PING),
+        sendOneMessageToEachGroup = false, onlyLocal = true)
+    case SubscribeAck(Subscribe(Topics.SessionClosed, None, `self`)) =>
+      context become ready
+  }
+
+  def ready = LoggingReceive {
     case Route(from, to, msg @ XmlElement("iq", _, _, _)) =>
       (msg("id"), msg("type")) match {
         case (Some(id), Some("get"))  =>

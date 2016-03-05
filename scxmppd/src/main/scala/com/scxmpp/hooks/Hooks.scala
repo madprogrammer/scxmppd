@@ -8,10 +8,12 @@ object Hooks {
   case class SessionOpened(jid: JID, actor: ActorRef)
   case class SessionClosed(jid: JID, actor: ActorRef)
   case class DiscoveryFeature(feature: String)
+  case object ModulesLoaded
 }
 
 object Topics {
   val SessionOpened = "session-opened"
   val SessionClosed = "session-closed"
   val DiscoveryFeature = "discovery-feature"
+  val ModulesLoaded = "modules-loaded"
 }
