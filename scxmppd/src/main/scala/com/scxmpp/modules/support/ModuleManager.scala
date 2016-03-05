@@ -1,4 +1,4 @@
-package com.scxmpp.modules
+package com.scxmpp.modules.support
 
 import akka.actor._
 import akka.event.LoggingReceive

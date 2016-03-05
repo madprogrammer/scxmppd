@@ -1,13 +1,12 @@
-package com.scxmpp.modules
+package com.scxmpp.modules.support
 
 import akka.actor._
-import akka.util.Timeout
 import akka.pattern.ask
-
+import akka.util.Timeout
 import com.scxmpp.akka.CustomDistributedPubSubExtension
 import com.scxmpp.server.ServerContext
-
 import com.typesafe.config.Config
+
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps

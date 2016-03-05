@@ -8,31 +8,31 @@ import com.scxmpp.xmpp.IQ
 
 import com.typesafe.config.Config
 
-object XmppPingModuleDefinitions
+object LastActivityModuleDefinitions
 {
-  val NS_PING: String = "urn:xmpp:ping"
+  val NS_LAST: String = "jabber:iq:last"
 }
 
-class XmppPingModule(serverContext: ServerContext, config: Config)
+class LastActivityModule(serverContext: ServerContext, config: Config)
   extends ModuleActor(serverContext, config) {
 
-  registerHandler(s"iq.${XmppPingModuleDefinitions.NS_PING}", classOf[XmppPingIqHandler])
+  registerHandler(s"iq.${LastActivityModuleDefinitions.NS_LAST}", classOf[LastActivityIqHandler])
 
   def receive = {
     case _ =>
   }
 }
 
-class XmppPingIqHandler(serverContext: ServerContext, config: Config)
+class LastActivityIqHandler(serverContext: ServerContext, config: Config)
   extends ModuleActor(serverContext, config) {
 
   def receive = {
     case Route(from, to, msg @ XmlElement("iq", _, _, _)) =>
       (msg("id"), msg("type")) match {
         case (Some(id), Some("get"))  =>
-          msg.child("ping") match {
-            case Some(ping) =>
-              if (ping("xmlns").contains(XmppPingModuleDefinitions.NS_PING))
+          msg.child("query") match {
+            case Some(query) =>
+              if (query("xmlns").contains(LastActivityModuleDefinitions.NS_LAST))
                 sender ! Route(to, from, IQ(id, "result"))
             case _ =>
           }

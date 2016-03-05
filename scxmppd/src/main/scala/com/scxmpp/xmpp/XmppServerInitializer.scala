@@ -3,7 +3,7 @@ package com.scxmpp.xmpp
 import akka.actor.{ActorSystem, Props}
 import com.scxmpp.c2s.C2SManager
 import com.scxmpp.cluster.ClusterListener
-import com.scxmpp.modules.{HandlerManager, ModuleManager}
+import com.scxmpp.modules.support.{ModuleManager, HandlerManager}
 import com.scxmpp.netty.{XmlElementEncoder, XmlFrameDecoder}
 import com.scxmpp.routing.Router
 import com.scxmpp.server.{ServerContext, SslContextHelper}

@@ -4,7 +4,7 @@ import sbt.Keys._
 object Dependencies {
 
   object Netty {
-    private val version = "4.0.34.Final"
+    private val version = "4.1.0.CR2"
     val all = "io.netty" % "netty-all" % version
     val epoll = "io.netty" % "netty-transport-native-epoll" % version
     val tcnative = "io.netty" % "netty-tcnative" % "1.1.33.Fork7" classifier "linux-x86_64"
@@ -22,10 +22,12 @@ object Dependencies {
   private val aalto  = "com.fasterxml" % "aalto-xml" % "0.9.11"
   private val shapeless = "com.chuusai" %% "shapeless" % "2.2.5"
 
+  private val etcd4j = "org.mousio" % "etcd4j" % "2.10.0"
+
   val scxmppd = dependencies(
     Netty.all, Netty.epoll, Netty.tcnative,
     Akka.actor, Akka.cluster, Akka.contrib,
-    config, icu4j, aalto, shapeless)
+    config, icu4j, aalto, shapeless, etcd4j)
 
   private def dependencies(modules: ModuleID*): Seq[Setting[_]] = Seq(libraryDependencies ++= modules)
 }

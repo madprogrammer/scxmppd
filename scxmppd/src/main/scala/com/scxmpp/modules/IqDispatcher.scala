@@ -1,6 +1,7 @@
 package com.scxmpp.modules
 
 import akka.event.LoggingReceive
+import com.scxmpp.modules.support.ModuleActor
 import com.scxmpp.util.Helpers
 import com.scxmpp.xmpp.StanzaError
 
