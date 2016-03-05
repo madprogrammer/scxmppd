@@ -215,8 +215,9 @@ class ClientFSM(
       stop()
     case Event(ExceptionCaught(e), _) =>
       stop()
-    case Event(Disconnected, _) =>
+    case Event(Disconnected, data: ClientState) =>
       logger.info("Disconnected: " + self.path)
+      mediator ! Publish(Topics.SessionClosed, Hooks.SessionClosed(data.jid.get, self))
       stop()
     case Event(Replaced(ref), _) =>
       logger.info("FSM replaced by " + ref.path)
@@ -234,6 +235,6 @@ class ClientFSM(
         channelContext,
         SessionEstablished,
         stateData.asInstanceOf[ClientState])
-    case from -> to => println("Transition from " + from + " to " + to)
+    case from -> to => logger.info("Transition from " + from + " to " + to)
   }
 }

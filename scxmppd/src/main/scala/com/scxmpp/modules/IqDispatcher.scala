@@ -13,9 +13,7 @@ import scala.language.postfixOps
 import akka.pattern.ask
 import akka.util.Timeout
 
-import com.scxmpp.akka.CustomDistributedPubSubMediator
-import com.scxmpp.hooks.{Topics, Hooks}
-import com.scxmpp.routing.Route
+import com.scxmpp.routing.{NotInterested, Route, Subscribe, SubscribeAck}
 import com.scxmpp.server.ServerContext
 import com.scxmpp.xml.XmlElement
 import com.typesafe.config.Config
@@ -29,18 +27,16 @@ import com.typesafe.config.Config
 class IqDispatcher(serverContext: ServerContext, config: Config)
   extends ModuleActor(serverContext, config) {
 
-  import CustomDistributedPubSubMediator.{Subscribe, SubscribeAck}
-
-  mediator ! Subscribe(Topics.MessageRouted, self)
+  router ! Subscribe(self)
 
   def receive = {
-    case SubscribeAck(Subscribe(Topics.MessageRouted, None, `self`)) =>
+    case SubscribeAck =>
       context become ready
   }
 
   def ready = LoggingReceive {
-    case Hooks.MessageRouted(Route(from, to, msg@XmlElement("iq", _, _, _))) =>
-      if (config.getStringList("xmpp.hosts") contains to.toString) {
+    case Route(from, to, msg@XmlElement("iq", _, _, _)) =>
+      if (config.getStringList("xmpp.hosts") contains to.server) {
         (msg("id"), msg("type")) match {
           case (Some(_), Some("get")) =>
             msg.firstChild match {
@@ -50,24 +46,30 @@ class IqDispatcher(serverContext: ServerContext, config: Config)
                 child("xmlns") match {
                   case Some(xmlns) =>
                     val encodedNamespace = Helpers.urlEncode(xmlns)
+                    val realSender = sender
                     val actorSel = context.actorSelection(s"/user/handler/iq.$encodedNamespace")
                     actorSel ? Route(from, to, msg) andThen {
                       case Success(result: Route) =>
                         router ! result
+                        realSender ! None
                       case Failure(failure) =>
-                        // TODO: logging
-                        println("Got failure " + failure)
+                        logger.warning("Got failure " + failure)
                         router ! Route(to, from, StanzaError(msg, StanzaError.ServiceUnavailable))
+                        realSender ! None
                       case other =>
-                        println("Got other " + other)
+                        logger.warning("Got unexpected " + other)
+                        realSender ! None
                     }
                   case None =>
                     router ! Route(to, from, StanzaError(msg, StanzaError.BadRequest))
+                    sender ! None
                 }
               case _ =>
                 router ! Route(to, from, StanzaError(msg, StanzaError.BadRequest))
+                sender ! None
             }
           case _ =>
+            sender ! NotInterested
         }
       }
   }

@@ -1,5 +1,7 @@
 package com.scxmpp.modules.support
 
+import java.util.logging.Logger
+
 import akka.actor._
 import akka.pattern.ask
 import akka.util.Timeout
@@ -15,6 +17,7 @@ abstract class ModuleActor(serverContext: ServerContext, config: Config) extends
   lazy val mediator = CustomDistributedPubSubExtension(context.system).mediator
   lazy val router = context.actorSelection("/user/router")
   lazy val handlerManager = context.actorSelection("/user/handler")
+  lazy val logger = Logger.getLogger(getClass.getName)
 
   // TODO: Limit allowed types to subclases of Actor
   def registerHandler(name: String, clazz: Class[_]): ActorRef = {

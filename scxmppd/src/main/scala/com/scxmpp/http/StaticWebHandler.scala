@@ -7,6 +7,7 @@ import java.util._
 import java.util.regex.Pattern
 import javax.activation.MimetypesFileTypeMap
 
+import java.util.logging.Logger
 import com.typesafe.config.Config
 import io.netty.channel._
 import io.netty.handler.codec.http._
@@ -19,6 +20,8 @@ class StaticWebHandler(config: Config) extends UriBasedHandler(config) {
   private val HTTP_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz"
   private val HTTP_DATE_GMT_TIMEZONE = "GMT"
   private val HTTP_CACHE_SECONDS = 60
+
+  private val logger = Logger.getLogger(getClass.getName)
 
   def process(ctx: ChannelHandlerContext, request: FullHttpRequest): Unit = {
     if (!request.getDecoderResult.isSuccess) {
@@ -86,14 +89,14 @@ class StaticWebHandler(config: Config) extends UriBasedHandler(config) {
     sendFileFuture.addListener(new ChannelProgressiveFutureListener() {
       override def operationProgressed(future: ChannelProgressiveFuture, progress: Long, total: Long) {
         if (total < 0) {
-          println(future.channel + " Transfer progress: " + progress)
+          logger.fine(future.channel + " Transfer progress: " + progress)
         } else {
-          println(future.channel + " Transfer progress: " + progress + " / " + total)
+          logger.fine(future.channel + " Transfer progress: " + progress + " / " + total)
         }
       }
 
       override def operationComplete(future: ChannelProgressiveFuture) {
-        println(future.channel + " Transfer complete.")
+        logger.fine(future.channel + " Transfer complete.")
       }
     })
 

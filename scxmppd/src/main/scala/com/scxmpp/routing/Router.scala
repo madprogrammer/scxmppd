@@ -1,43 +1,58 @@
 package com.scxmpp.routing
 
+import akka.util.Timeout
 import com.scxmpp.akka.{CustomDistributedPubSubExtension, CustomDistributedPubSubMediator}
-import com.scxmpp.hooks.{Hooks, Topics}
-import com.scxmpp.pipeline.PipelineHandler
 import com.scxmpp.xml.XmlElement
 import com.scxmpp.xmpp.JID
 import com.scxmpp.server.ServerContext
 
 import com.typesafe.config.Config
 
-import scala.collection.immutable
-import scala.collection.JavaConversions._
+import scala.collection.mutable
 import akka.event.LoggingReceive
 import akka.actor._
+import akka.pattern.ask
 import java.util.logging.Logger
 
+import scala.concurrent.Future
+import scala.concurrent.duration._
+import scala.util.{Failure, Success}
+
 case class Route(from: JID, to: JID, element: XmlElement)
+case class Subscribe(module: ActorRef)
+case object SubscribeAck
+case object NotInterested
 
 class Router(serverContext: ServerContext, config: Config) extends Actor with ActorLogging {
-  import CustomDistributedPubSubMediator.{SendToAll, Publish}
+  import CustomDistributedPubSubMediator.SendToAll
   val mediator = CustomDistributedPubSubExtension(context.system).mediator
   val logger = Logger.getLogger(getClass.getName)
-  val pipeline = constructPipeline
-
-  def constructPipeline: immutable.ListMap[String, PipelineHandler] = {
-    immutable.ListMap((for (
-      name <- config.getStringList("routing.pipeline");
-      clazz = serverContext.dynamicAccess.createInstanceFor[PipelineHandler](name, immutable.Seq.empty).get
-    ) yield clazz.name -> clazz): _*)
-  }
+  val modules = new mutable.ArrayBuffer[ActorRef]
 
   def receive = LoggingReceive {
-    case route @ Route(from, to, element) =>
-      pipeline.values.foldLeft[Option[Route]](Some(route)) { case (acc, handler) => handler.handle(route, acc) } match {
-        case Some(result) =>
-          mediator ! SendToAll("/user/c2s/%s".format(to.toActorPath), result, allButSelf = false)
-          mediator ! Publish(Topics.MessageRouted, Hooks.MessageRouted(result))
-        case None =>
-          logger.info("Message %s discarded after pipeline processing".format(route))
+    case Subscribe(module) =>
+      modules.append(module)
+      sender ! SubscribeAck
+    case route@Route(from, to, element) =>
+      implicit val timeout = new Timeout(60 seconds)
+      implicit val ec = context.dispatcher
+      var result: Option[Route] = Some(route)
+      val futures = modules.map(module => {
+        module ? route
+      })
+      Future.sequence(futures) onComplete {
+        case Failure(cause) =>
+          logger.warning("An error as occured while processing by modules: " + cause)
+        case Success(results) =>
+          if (results.contains(None))
+            result = None
+
+          result match {
+            case Some(msg) =>
+              mediator ! SendToAll("/user/c2s/%s".format(to.toActorPath), msg, allButSelf = false)
+            case None =>
+              logger.warning("Not routing message after processing by modules " + route)
+          }
       }
     }
 }
