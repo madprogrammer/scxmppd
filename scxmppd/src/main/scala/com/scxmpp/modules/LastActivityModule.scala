@@ -39,7 +39,6 @@ class LastActivityIqHandler(serverContext: ServerContext, config: Config)
   import CustomDistributedPubSubMediator.{Subscribe, SubscribeAck}
 
   mediator ! Subscribe(Topics.ModulesLoaded, self)
-  mediator ! Subscribe(Topics.SessionClosed, self)
 
   private def jidToKey(jid: JID): String = Helpers.urlEncode(jid.user) + ":" + jid.server + ":last"
 
@@ -47,6 +46,7 @@ class LastActivityIqHandler(serverContext: ServerContext, config: Config)
     case SubscribeAck(Subscribe(Topics.ModulesLoaded, None, `self`)) =>
       mediator ! Publish(Topics.DiscoveryFeature, Hooks.DiscoveryFeature(LastActivityModuleDefinitions.NS_LAST),
         sendOneMessageToEachGroup = false, onlyLocal = true)
+      mediator ! Subscribe(Topics.SessionClosed, self)
     case SubscribeAck(Subscribe(Topics.SessionClosed, None, `self`)) =>
       context become ready
   }
