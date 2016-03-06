@@ -21,13 +21,14 @@ object Dependencies {
   private val icu4j  = "com.ibm.icu" % "icu4j" % "55.1"
   private val aalto  = "com.fasterxml" % "aalto-xml" % "0.9.11"
   private val shapeless = "com.chuusai" %% "shapeless" % "2.2.5"
+  private val pickling = "org.scala-lang.modules" %% "scala-pickling" % "0.10.1"
 
   private val etcd4j = "org.mousio" % "etcd4j" % "2.10.0"
 
   val scxmppd = dependencies(
     Netty.all, Netty.epoll, Netty.tcnative,
     Akka.actor, Akka.cluster, Akka.contrib,
-    config, icu4j, aalto, shapeless, etcd4j)
+    config, icu4j, aalto, shapeless, etcd4j, pickling)
 
   private def dependencies(modules: ModuleID*): Seq[Setting[_]] = Seq(libraryDependencies ++= modules)
 }

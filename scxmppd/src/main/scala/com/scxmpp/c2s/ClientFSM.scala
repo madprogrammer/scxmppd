@@ -190,17 +190,15 @@ class ClientFSM(
         case Some(to) => JID(to)
       }
       name match {
-        case "presence" =>
-          // TODO: don't ignore presence
-        case "iq" | "message" =>
-          router ! Route(data.jid.get, toJID, newEl)
+        case "iq" | "message" | "presence" =>
+          router ! Route(data.jid.get, toJID, replaceFromTo(data.jid.get, toJID, newEl))
         case _ =>
       }
       stay()
     // Event addressed to client
     case Event(Route(from, to, e @ XmlElement(name, _, _, _)), data: ClientState) =>
       name match {
-        case "message" | "iq" =>
+        case "iq" | "message" | "presence" =>
           channelContext.writeAndFlush(replaceFromTo(from, to, e))
         case _ =>
       }
