@@ -70,6 +70,8 @@ class IqDispatcher(serverContext: ServerContext, config: Config)
             sender ! NotInterested
         }
       }
+    case _ =>
+      sender ! NotInterested
   }
 
 }
