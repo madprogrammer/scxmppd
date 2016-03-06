@@ -45,17 +45,22 @@ class IqDispatcher(serverContext: ServerContext, config: Config)
                   case Some(xmlns) =>
                     val encodedNamespace = Helpers.urlEncode(xmlns)
                     val realSender = sender
-                    val actorSel = context.actorSelection(s"/user/handler/iq.$encodedNamespace")
-                    actorSel ? Route(from, to, msg) andThen {
-                      case Success(result: Route) =>
-                        router ! result
-                        realSender ! None
-                      case Failure(failure) =>
-                        logger.warning("Got failure " + failure)
+                    context.actorSelection(s"/user/handler/iq.$encodedNamespace").resolveOne onComplete {
+                      case Success(actorRef) =>
+                        actorRef ? Route(from, to, msg) andThen {
+                          case Success(result: Route) =>
+                            router ! result
+                            realSender ! None
+                          case Failure(failure) =>
+                            logger.warning("Got failure " + failure)
+                            router ! Route(to, from, StanzaError(msg, StanzaError.ServiceUnavailable))
+                            realSender ! None
+                          case other =>
+                            logger.warning("Got unexpected " + other)
+                            realSender ! None
+                        }
+                      case Failure(_) =>
                         router ! Route(to, from, StanzaError(msg, StanzaError.ServiceUnavailable))
-                        realSender ! None
-                      case other =>
-                        logger.warning("Got unexpected " + other)
                         realSender ! None
                     }
                   case None =>
