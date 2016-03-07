@@ -5,7 +5,7 @@ import java.net.InetSocketAddress
 import javax.xml.bind.DatatypeConverter
 import com.scxmpp.akka.{CustomDistributedPubSubMediator, CustomDistributedPubSubExtension}
 import com.scxmpp.hooks.{Hooks, Topics}
-import com.scxmpp.netty.XmlFrameDecoder
+import com.scxmpp.netty.{XmlElementDecoder, XmlFrameDecoder}
 import com.scxmpp.routing.Route
 import com.scxmpp.util.{RandomUtils, StringPrep}
 import com.scxmpp.xml.XmlElement
@@ -105,7 +105,8 @@ class ClientFSM(
         case _ =>
           streamHeaderError(data.streamId, StreamError.InvalidNamespace)
       }
-    case Event(XmlElement(_, _, _, _), _) =>
+    case Event(e @ XmlElement(_, _, _, _), _) =>
+      println(e)
       stay()
   }
   when(WaitForFeatureRequest) {
@@ -226,8 +227,8 @@ class ClientFSM(
   }
   onTransition {
     case WaitForFeatureRequest -> WaitForStream =>
-      channelContext.pipeline.get("xmlFrameDecoder").asInstanceOf[XmlFrameDecoder].reset()
-      channelContext.handler.asInstanceOf[XmppServerHandler].reset()
+      channelContext.pipeline.get(classOf[XmlFrameDecoder]).reset()
+      channelContext.pipeline.get(classOf[XmlElementDecoder]).reset()
     case WaitForSession -> SessionEstablished =>
       channelContext.handler.asInstanceOf[XmppServerHandler].replaceFSM(
         channelContext,

@@ -1,7 +1,7 @@
 package com.scxmpp.server
 
 import com.typesafe.config.{Config, ConfigFactory}
-import akka.actor.ReflectiveDynamicAccess
+import akka.actor.{ActorSystem, ReflectiveDynamicAccess}
 
 abstract class Context(val config: Config) {
   def this() {
@@ -15,5 +15,6 @@ abstract class Context(val config: Config) {
   }
 
   val dynamicAccess = new ReflectiveDynamicAccess(getClass.getClassLoader)
+  val actorSystem = ActorSystem("system")
 }
 
