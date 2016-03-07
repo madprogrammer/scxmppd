@@ -35,8 +35,8 @@ class IqDispatcher(serverContext: ServerContext, config: Config)
   def ready = LoggingReceive {
     case Route(from, to, msg@XmlElement("iq", _, _, _)) =>
       if (config.getStringList("xmpp.hosts") contains to.server) {
-        (msg("id"), msg("type")) match {
-          case (Some(_), Some("get")) =>
+        msg("type") match {
+          case Some("get") | Some("set") =>
             msg.firstChild match {
               case Some(child) =>
                 implicit val timeout = Timeout(5.seconds)
