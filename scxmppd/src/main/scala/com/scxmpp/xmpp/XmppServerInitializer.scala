@@ -29,7 +29,6 @@ class XmppServerInitializer(context: ServerContext, config: Config) extends Chan
     p.addLast("xmlFrameDecoder", new XmlFrameDecoder())
     p.addLast("xmlElementDecoder", new XmlElementDecoder())
     p.addLast("xmlElementEncoder", new XmlElementEncoder())
-    p.addLast("stringEncoder", new StringEncoder(CharsetUtil.UTF_8))
     p.addLast("handler", new XmppServerHandler(context.actorSystem))
   }
 }

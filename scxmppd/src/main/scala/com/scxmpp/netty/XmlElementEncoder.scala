@@ -15,7 +15,7 @@ class XmlElementEncoder extends MessageToMessageEncoder[XmlElement] {
   val outputFactory = XMLOutputFactory.newInstance
   val eventFactory = XMLEventFactory.newInstance
 
-  def writeElement(el: XmlElement, eventWriter: XMLEventWriter) {
+  private def writeElement(el: XmlElement, eventWriter: XMLEventWriter) {
     eventWriter.add(eventFactory.createStartElement("", "", el.name))
     for (attr <- el.attrs)
       eventWriter.add(eventFactory.createAttribute(attr._1, attr._2))
@@ -27,16 +27,19 @@ class XmlElementEncoder extends MessageToMessageEncoder[XmlElement] {
       eventWriter.add(eventFactory.createEndElement("", "", el.name))
   }
 
-  @throws[Exception]
-  override def encode(ctx: ChannelHandlerContext, message: XmlElement, out: util.List[Object]) {
+  protected def elementAsString(element: XmlElement) = {
     val stringWriter = new StringWriter
     val eventWriter = outputFactory.createXMLEventWriter(stringWriter)
 
-    writeElement(message, eventWriter)
-
+    writeElement(element, eventWriter)
     eventWriter.flush()
-    out.add(ByteBufUtil.encodeString(ctx.alloc, CharBuffer.wrap(stringWriter.toString), Charset.defaultCharset))
     eventWriter.close()
+    stringWriter.toString
+  }
+
+  @throws[Exception]
+  override def encode(ctx: ChannelHandlerContext, message: XmlElement, out: util.List[Object]) {
+    out.add(ByteBufUtil.encodeString(ctx.alloc, CharBuffer.wrap(elementAsString(message)), Charset.defaultCharset))
   }
 
 }
