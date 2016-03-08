@@ -24,15 +24,16 @@ object ClientFSM {
   case object SessionEstablished extends State
 
   // Internal state (business logic)
-  sealed trait Data
   case class ClientState(
     streamId: String,
     authenticated: Boolean = false,
     user: String = "",
     server: String = "",
     resource: String = "",
-    jid: Option[JID] = None
-  ) extends Data
+    jid: Option[JID] = None,
+    bosh: Boolean = false,
+    context: ChannelHandlerContext
+  )
 
   // Accepted commands
   case object Disconnected
@@ -44,27 +45,26 @@ object ClientFSM {
 
 class ClientFSM(
   config: Config,
-  channelContext: ChannelHandlerContext,
   state: ClientFSM.State,
-  data: ClientFSM.Data
-) extends FSM[ClientFSM.State, ClientFSM.Data]  {
+  data: ClientFSM.ClientState
+) extends FSM[ClientFSM.State, ClientFSM.ClientState]  {
   import CustomDistributedPubSubMediator.Publish
   import ClientFSM._
 
   val mediator = CustomDistributedPubSubExtension(context.system).mediator
-  val (ip, port) = channelContext.channel.remoteAddress match { case s: InetSocketAddress => (s.getAddress.getHostAddress, s.getPort) }
+  val (ip, port) = data.context.channel.remoteAddress match { case s: InetSocketAddress => (s.getAddress.getHostAddress, s.getPort) }
   val logger = Logger.getLogger(getClass.getName)
   val router = context.actorSelection("/user/router")
 
   def streamError(error: String): State = {
-    channelContext.writeAndFlush(StreamError(error))
-    channelContext.writeAndFlush("</stream:stream>")
-    channelContext.close
+    data.context.channel.writeAndFlush(StreamError(error))
+    data.context.channel.writeAndFlush("</stream:stream>")
+    data.context.close
     stop()
   }
 
   def streamHeaderError(id: String, error: String): State = {
-    channelContext.writeAndFlush(StreamHeader(id))
+    data.context.channel.writeAndFlush(StreamHeader(id))
     streamError(error)
   }
 
@@ -93,8 +93,9 @@ class ClientFSM(
           else
             e("version") match {
               case Some("1.0") =>
-                channelContext.channel.writeAndFlush(StreamHeader(data.streamId))
-                channelContext.channel.writeAndFlush(StreamFeatures(data.authenticated))
+                if (!data.bosh)
+                  data.context.channel.writeAndFlush(StreamHeader(data.streamId))
+                data.context.channel.writeAndFlush(StreamFeatures(data.authenticated))
                 data.authenticated match {
                   case false => goto(WaitForFeatureRequest) using data
                   case true => goto(WaitForBind) using data.copy(server = server)
@@ -114,15 +115,15 @@ class ClientFSM(
       val decoded = new String(DatatypeConverter.parseBase64Binary(auth))
       decoded.split("\u0000") match {
         case Array(_, user, pass) =>
-          channelContext.channel.writeAndFlush(Sasl.Success)
+          data.context.channel.writeAndFlush(Sasl.Success)
           goto(WaitForStream) using data.copy(
             streamId = RandomUtils.randomDigits(10),
             user = StringPrep.nodePrep(user),
             authenticated = true)
         case _ =>
-          channelContext.channel.writeAndFlush(Sasl.Failure)
-          channelContext.channel.writeAndFlush("</stream:stream>")
-          channelContext.close
+          data.context.channel.writeAndFlush(Sasl.Failure)
+          data.context.channel.writeAndFlush("</stream:stream>")
+          data.context.close
           stop()
       }
     case Event(XmlElement(_, _, _, _), _) =>
@@ -138,20 +139,20 @@ class ClientFSM(
                 case Some(rsrc @ XmlElement("resource", _, resource, List())) =>
                   val resprep = StringPrep.resourcePrep(resource)
                   val jid = JID(data.user, data.server, resprep)
-                  channelContext.channel.writeAndFlush(IQ(id, "result",
+                  data.context.channel.writeAndFlush(IQ(id, "result",
                     XmlElement("bind", List("xmlns" -> XmppNS.Bind), "", List(
                       XmlElement("jid", List(), jid.toString, List())))))
                     goto(WaitForSession) using data.copy(resource = resprep, jid = Some(jid))
                 case _ =>
-                  channelContext.channel.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
+                  data.context.channel.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
                   stay()
               }
             case _ =>
-              channelContext.channel.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
+              data.context.channel.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
               stay()
           }
         case _ =>
-          channelContext.channel.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
+          data.context.channel.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
           stay()
       }
     case Event(XmlElement(_, _, _, _), _) =>
@@ -163,14 +164,14 @@ class ClientFSM(
         case Some(id) =>
           e.child("session") match {
             case Some(XmlElement("session", List("xmlns" -> XmppNS.Session), "", List())) =>
-              channelContext.channel.writeAndFlush(IQ(id, "result",
+              data.context.channel.writeAndFlush(IQ(id, "result",
                 XmlElement("session", List("xmlns" -> XmppNS.Session), "", List())))
               goto(SessionEstablished) using data
             case _ =>
               stay()
           }
         case _ =>
-          channelContext.channel.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
+          data.context.channel.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
           stay()
       }
     case Event(XmlElement(_, _, _, _), _) =>
@@ -200,7 +201,7 @@ class ClientFSM(
     case Event(Route(from, to, e @ XmlElement(name, _, _, _)), data: ClientState) =>
       name match {
         case "iq" | "message" | "presence" =>
-          channelContext.channel.writeAndFlush(replaceFromTo(from, to, e))
+          data.context.channel.writeAndFlush(replaceFromTo(from, to, e))
         case _ =>
       }
       stay()
@@ -228,11 +229,11 @@ class ClientFSM(
   }
   onTransition {
     case WaitForFeatureRequest -> WaitForStream =>
-      channelContext.pipeline.get(classOf[XmlFrameDecoder]).reset()
-      channelContext.pipeline.get(classOf[XmlElementDecoder]).reset()
+      data.context.pipeline.get(classOf[XmlFrameDecoder]).reset()
+      data.context.pipeline.get(classOf[XmlElementDecoder]).reset()
     case WaitForSession -> SessionEstablished =>
-      channelContext.handler.asInstanceOf[XmppServerHandler].replaceFSM(
-        channelContext,
+      data.context.handler.asInstanceOf[XmppServerHandler].replaceFSM(
+        data.context,
         SessionEstablished,
         stateData.asInstanceOf[ClientState])
     case from -> to => logger.info("Transition from " + from + " to " + to)

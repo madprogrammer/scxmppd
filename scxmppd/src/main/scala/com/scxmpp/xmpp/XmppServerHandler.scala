@@ -25,9 +25,9 @@ class XmppServerHandler(actorSystem: ActorSystem) extends SimpleChannelInboundHa
     implicit val timeout = Timeout(60.seconds)
     val (ip, port) = ctx.channel.remoteAddress match { case s: InetSocketAddress => (s.getAddress.getHostAddress, s.getPort) }
     val name = ip + ":" + port + "@" + RandomUtils.randomDigits(5)
-    val future = manager ? CreateClientFSM(ctx, name,
+    val future = manager ? CreateClientFSM(name,
       ClientFSM.WaitForStream,
-      ClientFSM.ClientState(RandomUtils.randomDigits(10)))
+      ClientFSM.ClientState(RandomUtils.randomDigits(10), context = ctx))
     Await.result(future, timeout.duration).asInstanceOf[ActorRef]
   }
 
@@ -39,7 +39,7 @@ class XmppServerHandler(actorSystem: ActorSystem) extends SimpleChannelInboundHa
         throw new IllegalArgumentException("JID was not initialized")
       case Some(jid) =>
         val previous = fsm
-        val future = manager ? CreateClientFSM(ctx, jid.toActorPath, state, data)
+        val future = manager ? CreateClientFSM(jid.toActorPath, state, data)
         fsm = Await.result(future, timeout.duration).asInstanceOf[ActorRef]
         fsm ! ClientFSM.Initialize
         previous ! ClientFSM.Replaced(fsm)

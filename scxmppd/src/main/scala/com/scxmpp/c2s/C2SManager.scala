@@ -8,15 +8,15 @@ import akka.actor._
 
 import com.typesafe.config.Config
 
-case class CreateClientFSM(ctx: ChannelHandlerContext, name: String, state: ClientFSM.State, data: ClientFSM.Data)
+case class CreateClientFSM(name: String, state: ClientFSM.State, data: ClientFSM.ClientState)
 
 class C2SManager(config: Config) extends Actor with ActorLogging {
   import CustomDistributedPubSubMediator.Put
   val mediator = CustomDistributedPubSubExtension(context.system).mediator
 
   def receive = LoggingReceive {
-    case CreateClientFSM(ctx, name, state, data) =>
-      val actorRef = context.actorOf(Props(classOf[ClientFSM], config, ctx, state, data).withDeploy(Deploy.local), name)
+    case CreateClientFSM(name, state, data) =>
+      val actorRef = context.actorOf(Props(classOf[ClientFSM], config, state, data).withDeploy(Deploy.local), name)
       mediator ! Put(actorRef)
       sender ! actorRef
   }

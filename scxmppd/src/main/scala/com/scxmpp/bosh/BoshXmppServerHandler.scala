@@ -83,8 +83,8 @@ class BoshXmppServerHandler(context: ServerContext) extends ChannelDuplexHandler
                     implicit val timeout = Timeout(5.seconds)
 
                     // Here we go creating a new session
-                    manager ? CreateClientFSM(ctx, newSid, newSid, ClientFSM.WaitForStream,
-                      ClientFSM.ClientState(RandomUtils.randomDigits(10))) onComplete {
+                    manager ? CreateClientFSM(newSid, newSid, ClientFSM.WaitForStream,
+                      ClientFSM.ClientState(RandomUtils.randomDigits(10), context = ctx)) onComplete {
                       case Success(_) =>
                         ctx.channel.writeAndFlush(XmlElement("body", List(
                           ("xmlns", NS_BOSH),
@@ -95,7 +95,12 @@ class BoshXmppServerHandler(context: ServerContext) extends ChannelDuplexHandler
                           ("ack", rid),
                           ("maxpause", "%d".format(wait * 2)),
                           ("requests", "2"),
-                          ("sid", newSid)), "", List()))
+                          ("sid", newSid),
+                          ("xmpp:restartlogic", "true"),
+                          ("xmpp:version", "1.0"),
+                          ("xmlns:xmpp", "urn:xmpp:xbosh"),
+                          ("xmlns:stream", "http://etherx.jabber.org/streams")),
+                          "", List()))
                       case Failure(_) =>
                         terminateWithCondition(ctx, TerminalCondition.ERR_INTERNAL_ERROR)
                     }
