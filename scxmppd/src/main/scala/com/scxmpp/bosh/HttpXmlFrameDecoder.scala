@@ -15,6 +15,10 @@ class HttpXmlFrameDecoder extends MessageToMessageDecoder[FullHttpRequest] {
   var reader = factory.createAsyncForByteBuffer
   val allocator = EventAllocatorImpl.getDefaultInstance
 
+  def reset() {
+    reader = factory.createAsyncForByteBuffer
+  }
+
   @throws[Exception]
   protected override def decode(ctx: ChannelHandlerContext, msg: FullHttpRequest, out: util.List[Object]): Unit = {
     val buffer = msg.content()
@@ -25,5 +29,7 @@ class HttpXmlFrameDecoder extends MessageToMessageDecoder[FullHttpRequest] {
     while (reader.hasNext && reader.next != AsyncXMLStreamReader.EVENT_INCOMPLETE) {
       out.add(allocator.allocate(reader))
     }
+
+    reset()
   }
 }

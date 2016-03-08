@@ -33,8 +33,10 @@ class XmlElementEncoder extends MessageToMessageEncoder[XmlElement] {
 
     writeElement(element, eventWriter)
     eventWriter.flush()
+    val result = stringWriter.toString
     eventWriter.close()
-    stringWriter.toString
+
+    result
   }
 
   @throws[Exception]

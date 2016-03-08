@@ -93,8 +93,8 @@ class ClientFSM(
           else
             e("version") match {
               case Some("1.0") =>
-                channelContext.writeAndFlush(StreamHeader(data.streamId))
-                channelContext.writeAndFlush(StreamFeatures(data.authenticated))
+                channelContext.channel.writeAndFlush(StreamHeader(data.streamId))
+                channelContext.channel.writeAndFlush(StreamFeatures(data.authenticated))
                 data.authenticated match {
                   case false => goto(WaitForFeatureRequest) using data
                   case true => goto(WaitForBind) using data.copy(server = server)
@@ -114,14 +114,14 @@ class ClientFSM(
       val decoded = new String(DatatypeConverter.parseBase64Binary(auth))
       decoded.split("\u0000") match {
         case Array(_, user, pass) =>
-          channelContext.writeAndFlush(Sasl.Success)
+          channelContext.channel.writeAndFlush(Sasl.Success)
           goto(WaitForStream) using data.copy(
             streamId = RandomUtils.randomDigits(10),
             user = StringPrep.nodePrep(user),
             authenticated = true)
         case _ =>
-          channelContext.writeAndFlush(Sasl.Failure)
-          channelContext.writeAndFlush("</stream:stream>")
+          channelContext.channel.writeAndFlush(Sasl.Failure)
+          channelContext.channel.writeAndFlush("</stream:stream>")
           channelContext.close
           stop()
       }
@@ -138,20 +138,20 @@ class ClientFSM(
                 case Some(rsrc @ XmlElement("resource", _, resource, List())) =>
                   val resprep = StringPrep.resourcePrep(resource)
                   val jid = JID(data.user, data.server, resprep)
-                  channelContext.writeAndFlush(IQ(id, "result",
+                  channelContext.channel.writeAndFlush(IQ(id, "result",
                     XmlElement("bind", List("xmlns" -> XmppNS.Bind), "", List(
                       XmlElement("jid", List(), jid.toString, List())))))
                     goto(WaitForSession) using data.copy(resource = resprep, jid = Some(jid))
                 case _ =>
-                  channelContext.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
+                  channelContext.channel.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
                   stay()
               }
             case _ =>
-              channelContext.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
+              channelContext.channel.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
               stay()
           }
         case _ =>
-          channelContext.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
+          channelContext.channel.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
           stay()
       }
     case Event(XmlElement(_, _, _, _), _) =>
@@ -163,14 +163,14 @@ class ClientFSM(
         case Some(id) =>
           e.child("session") match {
             case Some(XmlElement("session", List("xmlns" -> XmppNS.Session), "", List())) =>
-              channelContext.writeAndFlush(IQ(id, "result",
+              channelContext.channel.writeAndFlush(IQ(id, "result",
                 XmlElement("session", List("xmlns" -> XmppNS.Session), "", List())))
               goto(SessionEstablished) using data
             case _ =>
               stay()
           }
         case _ =>
-          channelContext.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
+          channelContext.channel.writeAndFlush(StanzaError(e, StanzaError.BadRequest))
           stay()
       }
     case Event(XmlElement(_, _, _, _), _) =>
@@ -200,7 +200,7 @@ class ClientFSM(
     case Event(Route(from, to, e @ XmlElement(name, _, _, _)), data: ClientState) =>
       name match {
         case "iq" | "message" | "presence" =>
-          channelContext.writeAndFlush(replaceFromTo(from, to, e))
+          channelContext.channel.writeAndFlush(replaceFromTo(from, to, e))
         case _ =>
       }
       stay()
@@ -216,7 +216,8 @@ class ClientFSM(
       stop()
     case Event(Disconnected, data: ClientState) =>
       logger.info("Disconnected: " + self.path)
-      mediator ! Publish(Topics.SessionClosed, Hooks.SessionClosed(data.jid.get, self))
+      if (data.jid.isDefined)
+        mediator ! Publish(Topics.SessionClosed, Hooks.SessionClosed(data.jid.get, self))
       stop()
     case Event(Replaced(ref), _) =>
       logger.info("FSM replaced by " + ref.path)

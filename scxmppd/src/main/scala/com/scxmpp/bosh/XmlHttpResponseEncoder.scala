@@ -15,6 +15,7 @@ class XmlHttpResponseEncoder extends XmlElementEncoder {
     val response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK,
       Unpooled.copiedBuffer(string, CharsetUtil.UTF_8))
     HttpUtil.setContentLength(response, string.length)
+    response.headers.add("Access-Control-Allow-Origin", "*")
     out.add(response)
   }
 }
