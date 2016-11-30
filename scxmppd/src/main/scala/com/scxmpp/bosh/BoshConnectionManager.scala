@@ -12,6 +12,7 @@ import scala.concurrent.duration._
 import scala.collection.mutable
 
 case class CreateClientFSM(sid: String, name: String, state: ClientFSM.State, data: ClientFSM.ClientState)
+case class GetClientFSM(sid: String)
 
 class BoshConnectionManager(config: Config) extends Actor with ActorLogging {
   val clients = mutable.HashMap.empty[String, String]
@@ -28,5 +29,7 @@ class BoshConnectionManager(config: Config) extends Actor with ActorLogging {
           clients.put(sid, name)
           originalSender ! actorRef
       }
+    case GetClientFSM(sid) =>
+      sender ! clients.get(sid)
   }
 }

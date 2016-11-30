@@ -5,11 +5,13 @@ import java.util
 import com.fasterxml.aalto.AsyncXMLStreamReader
 import com.fasterxml.aalto.evt.EventAllocatorImpl
 import com.fasterxml.aalto.stax.InputFactoryImpl
+import com.scxmpp.netty.ResettableChannelInboundHandler
 import io.netty.channel.ChannelHandlerContext
 import io.netty.handler.codec.MessageToMessageDecoder
 import io.netty.handler.codec.http.FullHttpRequest
 
-class HttpXmlFrameDecoder extends MessageToMessageDecoder[FullHttpRequest] {
+class HttpXmlFrameDecoder extends MessageToMessageDecoder[FullHttpRequest]
+  with ResettableChannelInboundHandler {
 
   val factory = new InputFactoryImpl()
   var reader = factory.createAsyncForByteBuffer

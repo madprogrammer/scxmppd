@@ -10,7 +10,8 @@ import com.fasterxml.aalto.AsyncXMLStreamReader
 import com.fasterxml.aalto.evt.EventAllocatorImpl
 import com.fasterxml.aalto.stax.InputFactoryImpl
 
-class XmlFrameDecoder extends ByteToMessageDecoder {
+class XmlFrameDecoder extends ByteToMessageDecoder
+  with ResettableChannelInboundHandler {
 
   val factory = new InputFactoryImpl()
   var reader = factory.createAsyncForByteBuffer

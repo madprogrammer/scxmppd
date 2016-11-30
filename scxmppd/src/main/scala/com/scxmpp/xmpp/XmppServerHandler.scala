@@ -31,21 +31,6 @@ class XmppServerHandler(actorSystem: ActorSystem) extends SimpleChannelInboundHa
     Await.result(future, timeout.duration).asInstanceOf[ActorRef]
   }
 
-  // Called from ClientFSM to replace it while keeping state
-  def replaceFSM(ctx: ChannelHandlerContext, state: ClientFSM.State, data: ClientFSM.ClientState) {
-    implicit val timeout = Timeout(60.seconds)
-    data.jid match {
-      case None =>
-        throw new IllegalArgumentException("JID was not initialized")
-      case Some(jid) =>
-        val previous = fsm
-        val future = manager ? CreateClientFSM(jid.toActorPath, state, data)
-        fsm = Await.result(future, timeout.duration).asInstanceOf[ActorRef]
-        fsm ! ClientFSM.Initialize
-        previous ! ClientFSM.Replaced(fsm)
-    }
-  }
-
   override def channelRead0(ctx: ChannelHandlerContext, msg: XmlElement) =
     fsm ! msg
 

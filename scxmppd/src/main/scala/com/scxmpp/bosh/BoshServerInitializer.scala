@@ -24,7 +24,7 @@ class BoshServerInitializer(context: ServerContext, config: Config) extends Chan
 
     p.addLast("httpAggregator", new HttpObjectAggregator(65536))
     p.addLast("xmlFrameDecoder", new HttpXmlFrameDecoder())
-    p.addLast("xmlElementDecoder", new XmlElementDecoder())
+    p.addLast("xmlElementDecoder", new XmlElementDecoder(false))
 
     // Encoders
     p.addLast("xmlHttpResponseEncoder", new XmlHttpResponseEncoder())

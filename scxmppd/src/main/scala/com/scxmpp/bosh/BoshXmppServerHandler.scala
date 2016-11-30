@@ -5,12 +5,11 @@ import com.scxmpp.c2s.ClientFSM
 import com.scxmpp.server.ServerContext
 import com.scxmpp.util.RandomUtils
 import com.scxmpp.xml.XmlElement
-import io.netty.channel.{ChannelPromise, ChannelDuplexHandler, ChannelHandlerContext}
-
+import io.netty.channel.{ChannelDuplexHandler, ChannelHandlerContext, ChannelPromise}
 import akka.pattern.ask
+
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
-
 import scala.util.{Failure, Success}
 
 object TerminalCondition {
@@ -30,6 +29,9 @@ object BoshDefaults {
 
 class BoshXmppServerHandler(context: ServerContext) extends ChannelDuplexHandler {
   val NS_BOSH = "http://jabber.org/protocol/httpbind"
+  val NS_XMPP = "urn:xmpp:xbosh"
+  val NS_STREAM = "http://etherx.jabber.org/streams"
+
   val manager = context.actorSystem.actorSelection("/user/bosh")
 
   override def channelActive(ctx: ChannelHandlerContext) {
@@ -51,22 +53,38 @@ class BoshXmppServerHandler(context: ServerContext) extends ChannelDuplexHandler
       case XmlElement("body", _, _, _) =>
         super.write(ctx, msg, promise)
       case other @ XmlElement(_, _, _, _) =>
-        super.write(ctx, XmlElement("body", List(("xmlns", NS_BOSH)), "", List(msg)), promise)
+        super.write(ctx, XmlElement("body", List(
+          ("xmlns", NS_BOSH),
+          ("xmlns:xmpp", NS_XMPP),
+          ("xmlns:stream", NS_STREAM)
+        ), "", List(msg)), promise)
     }
   }
 
   override def channelRead(ctx: ChannelHandlerContext, obj: Object) = {
     val msg = obj.asInstanceOf[XmlElement]
-    println(msg)
     msg match {
-      case XmlElement("body", _, "", List()) =>
+      case XmlElement("body", _, "", _) =>
         msg("xmlns") match {
           case Some(NS_BOSH) =>
             msg("sid") match {
               case Some(sid) =>
+                implicit val timeout = Timeout(5.seconds)
+
                 // Existing session
-                ctx.channel.writeAndFlush(XmlElement("body", List(
-                  ("xmlns", NS_BOSH)), "", List()))
+                manager ? GetClientFSM(sid) onComplete {
+                  case Success(Some(name)) =>
+                    val actorRef = context.actorSystem.actorSelection("/user/c2s/%s".format(name))
+                    if (msg.children.nonEmpty) {
+                      // If we have child elements pass it to FSM
+                      msg.children.foreach(i => actorRef ! i)
+                    } else {
+                      // Otherwise just pass the original message
+                      actorRef ! msg
+                    }
+                  case _ =>
+                    terminateWithCondition(ctx, TerminalCondition.ERR_ITEM_NOT_FOUND)
+                }
               case _ =>
                 // Request to create new session
                 msg("rid") match {
@@ -83,7 +101,7 @@ class BoshXmppServerHandler(context: ServerContext) extends ChannelDuplexHandler
                     implicit val timeout = Timeout(5.seconds)
 
                     // Here we go creating a new session
-                    manager ? CreateClientFSM(newSid, newSid, ClientFSM.WaitForStream,
+                    manager ? CreateClientFSM(newSid, newSid, ClientFSM.WaitForBosh,
                       ClientFSM.ClientState(RandomUtils.randomDigits(10), context = ctx)) onComplete {
                       case Success(_) =>
                         ctx.channel.writeAndFlush(XmlElement("body", List(
@@ -111,6 +129,8 @@ class BoshXmppServerHandler(context: ServerContext) extends ChannelDuplexHandler
           case _ =>
             terminateWithCondition(ctx, TerminalCondition.ERR_BAD_REQUEST)
         }
+      case _ =>
+        terminateWithCondition(ctx, TerminalCondition.ERR_BAD_REQUEST)
     }
   }
 }

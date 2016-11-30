@@ -3,9 +3,10 @@ package com.scxmpp.c2s
 import java.util.logging.Logger
 import java.net.InetSocketAddress
 import javax.xml.bind.DatatypeConverter
-import com.scxmpp.akka.{CustomDistributedPubSubMediator, CustomDistributedPubSubExtension}
+
+import com.scxmpp.akka.{CustomDistributedPubSubExtension, CustomDistributedPubSubMediator}
 import com.scxmpp.hooks.{Hooks, Topics}
-import com.scxmpp.netty.{XmlElementDecoder, XmlFrameDecoder}
+import com.scxmpp.netty.{ResettableChannelInboundHandler, XmlElementDecoder}
 import com.scxmpp.routing.Route
 import com.scxmpp.util.{RandomUtils, StringPrep}
 import com.scxmpp.xml.XmlElement
@@ -17,6 +18,8 @@ import akka.actor._
 object ClientFSM {
   // Possible states of the FSM
   sealed trait State
+  case object WaitForBosh extends State
+  case object WaitForReset extends State
   case object WaitForStream extends State
   case object WaitForFeatureRequest extends State
   case object WaitForBind extends State
@@ -30,8 +33,8 @@ object ClientFSM {
     user: String = "",
     server: String = "",
     resource: String = "",
-    jid: Option[JID] = None,
     bosh: Boolean = false,
+    jid: Option[JID] = None,
     context: ChannelHandlerContext
   )
 
@@ -54,7 +57,9 @@ class ClientFSM(
   val mediator = CustomDistributedPubSubExtension(context.system).mediator
   val (ip, port) = data.context.channel.remoteAddress match { case s: InetSocketAddress => (s.getAddress.getHostAddress, s.getPort) }
   val logger = Logger.getLogger(getClass.getName)
+
   val router = context.actorSelection("/user/router")
+  val manager = context.actorSelection("/user/c2s")
 
   def streamError(error: String): State = {
     data.context.channel.writeAndFlush(StreamError(error))
@@ -83,6 +88,25 @@ class ClientFSM(
   }
 
   startWith(state, data)
+  when(WaitForBosh) {
+    case Event(XmlElement("body", _, "", List()), data: ClientState) =>
+      data.context.channel.writeAndFlush(StreamFeatures(data.authenticated))
+      goto(WaitForFeatureRequest) using data.copy(bosh = true)
+  }
+  when(WaitForReset) {
+    case Event(e @ XmlElement("body", _, "", List()), data: ClientState) =>
+      val server = StringPrep.namePrep(e("to") getOrElse "")
+      e("xmpp:restart") match {
+        case Some("true") =>
+          data.context.channel.writeAndFlush(StreamFeatures(data.authenticated))
+          data.authenticated match {
+            case false => goto(WaitForFeatureRequest) using data
+            case true => goto(WaitForBind) using data.copy(server = server)
+          }
+        case _ =>
+          stay()
+      }
+  }
   when(WaitForStream) {
     case Event(e @ XmlElement("stream", _, "", List()), data: ClientState) =>
       e("xmlns") match {
@@ -93,8 +117,7 @@ class ClientFSM(
           else
             e("version") match {
               case Some("1.0") =>
-                if (!data.bosh)
-                  data.context.channel.writeAndFlush(StreamHeader(data.streamId))
+                data.context.channel.writeAndFlush(StreamHeader(data.streamId))
                 data.context.channel.writeAndFlush(StreamFeatures(data.authenticated))
                 data.authenticated match {
                   case false => goto(WaitForFeatureRequest) using data
@@ -112,11 +135,13 @@ class ClientFSM(
   }
   when(WaitForFeatureRequest) {
     case Event(e @ XmlElement("auth", _, auth, List()), data: ClientState) =>
+      // TODO: Add real authentication
       val decoded = new String(DatatypeConverter.parseBase64Binary(auth))
       decoded.split("\u0000") match {
         case Array(_, user, pass) =>
           data.context.channel.writeAndFlush(Sasl.Success)
-          goto(WaitForStream) using data.copy(
+          val nextState = if (data.bosh) WaitForReset else WaitForStream
+          goto(nextState) using data.copy(
             streamId = RandomUtils.randomDigits(10),
             user = StringPrep.nodePrep(user),
             authenticated = true)
@@ -213,7 +238,7 @@ class ClientFSM(
     case Event(ParseError, _) =>
       streamError(StreamError.XmlNotWellFormed)
       stop()
-    case Event(ExceptionCaught(e), _) =>
+    case Event(ExceptionCaught(_), _) =>
       stop()
     case Event(Disconnected, data: ClientState) =>
       logger.info("Disconnected: " + self.path)
@@ -229,13 +254,10 @@ class ClientFSM(
   }
   onTransition {
     case WaitForFeatureRequest -> WaitForStream =>
-      data.context.pipeline.get(classOf[XmlFrameDecoder]).reset()
+      data.context.pipeline.get(classOf[ResettableChannelInboundHandler]).reset()
       data.context.pipeline.get(classOf[XmlElementDecoder]).reset()
     case WaitForSession -> SessionEstablished =>
-      data.context.handler.asInstanceOf[XmppServerHandler].replaceFSM(
-        data.context,
-        SessionEstablished,
-        stateData.asInstanceOf[ClientState])
+      manager ! ReplaceClientFSM(SessionEstablished, stateData)
     case from -> to => logger.info("Transition from " + from + " to " + to)
   }
 }

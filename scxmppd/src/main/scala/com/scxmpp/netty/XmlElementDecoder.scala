@@ -11,16 +11,16 @@ import javax.xml.stream.events._
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
-class XmlElementDecoder extends MessageToMessageDecoder[XMLEvent] {
-  val logger = Logger.getLogger(getClass.getName)
+class XmlElementDecoder(skipRoot: Boolean = true) extends MessageToMessageDecoder[XMLEvent] {
+  val logger: Logger = Logger.getLogger(getClass.getName)
   var nodes: mutable.Stack[XmlElement] = mutable.Stack()
   var depth = 0
 
-  def getAttributeTuple(attr: Attribute) = {
+  def getAttributeTuple(attr: Attribute): (String, String) = {
     (attr.getName.getPrefix match {
       case prefix if prefix.length > 0 =>
         prefix + ":" + attr.getName.getLocalPart
-      case prefix =>
+      case _ =>
         attr.getName.getLocalPart
     }, attr.getValue)
   }
@@ -32,7 +32,7 @@ class XmlElementDecoder extends MessageToMessageDecoder[XMLEvent] {
       ns match {
         case uri if uri.length > 0 =>
           "xmlns" -> ns :: e.getAttributes.map(x => getAttributeTuple(x.asInstanceOf[Attribute])).toList
-        case uri =>
+        case _ =>
           e.getAttributes.map(x => getAttributeTuple(x.asInstanceOf[Attribute])).toList
       },
       "", List())
@@ -45,11 +45,11 @@ class XmlElementDecoder extends MessageToMessageDecoder[XMLEvent] {
 
   override def decode(ctx: ChannelHandlerContext, event: XMLEvent, out: util.List[Object]) {
     event match {
-      case e: StartDocument =>
-      case e: StartElement if depth == 0 =>
+      case _: StartDocument =>
+      case e: StartElement if depth == 0 && skipRoot =>
         depth += 1
         out.add(getXmlElement(e))
-      case e: StartElement if depth >= 1 =>
+      case e: StartElement if depth >= 1 || !skipRoot =>
         val element = getXmlElement(e)
         if (nodes.nonEmpty) {
           val parent = nodes.head
@@ -57,19 +57,18 @@ class XmlElementDecoder extends MessageToMessageDecoder[XMLEvent] {
         }
         nodes.push(element)
         depth += 1
-      case e: EndElement =>
+      case _: EndElement =>
         depth -= 1
         if (nodes.nonEmpty) {
           val element = nodes.pop()
-          if (depth == 1) {
+          val targetDepth = if (skipRoot) 1 else 0
+
+          if (depth == targetDepth)
             out.add(element)
-          }
         }
       case e: Characters =>
-        if (!e.isWhiteSpace) {
-          nodes.head.body = e.getData
-        }
-      case e: EndDocument =>
+        if (!e.isWhiteSpace) nodes.head.body = e.getData
+      case _: EndDocument =>
       case _ =>
         logger.warning("Got unsupported event: " + event.getClass.getName)
     }
