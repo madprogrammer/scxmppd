@@ -1,11 +1,10 @@
 package com.scxmpp.c2s
 
 import com.scxmpp.akka.{CustomDistributedPubSubExtension, CustomDistributedPubSubMediator}
-import com.scxmpp.server.ServerContext
-import io.netty.channel.ChannelHandlerContext
 import akka.event.LoggingReceive
 import akka.actor._
-
+import com.scxmpp.akka.CustomDistributedPubSubMediator.{Publish, Remove}
+import com.scxmpp.hooks.{Hooks, Topics}
 import com.typesafe.config.Config
 
 case class CreateClientFSM(name: String, state: ClientFSM.State, data: ClientFSM.ClientState)
@@ -27,8 +26,11 @@ class C2SManager(config: Config) extends Actor with ActorLogging {
             jid.toActorPath)
           actorRef ! ClientFSM.Initialize
           sender ! ClientFSM.Replaced(actorRef)
-          // TODO: remove old actor
+
+          mediator ! Remove(sender.path.toString)
           mediator ! Put(actorRef)
+          mediator ! Publish(Topics.ClientFSMReplaced, Hooks.ClientFSMReplaced(sender.path.name, jid.toActorPath),
+            sendOneMessageToEachGroup = false, onlyLocal = true)
         case None =>
           throw new IllegalArgumentException("JID was not initialized")
       }

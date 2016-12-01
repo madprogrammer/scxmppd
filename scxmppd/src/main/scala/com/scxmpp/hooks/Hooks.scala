@@ -9,6 +9,7 @@ object Hooks {
   case class SessionClosed(jid: JID, actor: ActorRef)
   case class PresenceUpdate(jid: JID, prio: Int, typ: Option[String])
   case class DiscoveryFeature(feature: String)
+  case class ClientFSMReplaced(oldName: String, newName: String)
   case object ModulesLoaded
 }
 
@@ -18,4 +19,5 @@ object Topics {
   val DiscoveryFeature = "discovery-feature"
   val ModulesLoaded = "modules-loaded"
   val PresenceUpdate = "presence-update"
+  val ClientFSMReplaced = "client-fsm-replaced"
 }
